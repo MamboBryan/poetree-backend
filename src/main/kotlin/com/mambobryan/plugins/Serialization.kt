@@ -11,7 +11,7 @@ import io.ktor.server.routing.*
 fun Application.configureSerialization() {
     install(ContentNegotiation) {
         gson {
-            this.setExclusionStrategies(AnnotationExclusionStrategy()).create()
+            this.setExclusionStrategies(AnnotationExclusionStrategy()).serializeNulls().create()
         }
     }
 }
