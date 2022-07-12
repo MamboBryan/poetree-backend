@@ -30,6 +30,12 @@ fun hash(password: String): String {
     return hex(hmac.doFinal(password.toByteArray(Charsets.UTF_8)))
 }
 
+fun getVerifier(audience: String, issuer: String) = JWT
+    .require(algorithm)
+    .withAudience(audience)
+    .withIssuer(issuer)
+    .build()
+
 fun generateToken(issuer: String, audience: String, user: User): String = JWT
     .create()
     .withAudience(audience)
@@ -40,18 +46,24 @@ fun generateToken(issuer: String, audience: String, user: User): String = JWT
 
 fun Application.configureSecurity() {
 
-    authentication {
-        jwt {
-            val jwtAudience = this@configureSecurity.environment.config.property("jwt.audience").getString()
-            realm = this@configureSecurity.environment.config.property("jwt.realm").getString()
-            verifier(
-                JWT.require(algorithm)
-                    .withAudience(jwtAudience)
-                    .withIssuer(this@configureSecurity.environment.config.property("jwt.domain").getString())
-                    .build()
-            )
+    val jwtAudience = environment.config.property("jwt.audience").getString()
+    val jwtIssuer = environment.config.property("jwt.issuer").getString()
+    val jwtRealm = environment.config.property("jwt.realm").getString()
+
+    install(Authentication) {
+        jwt("auth-jwt") {
+
+            realm = jwtRealm
+
+            verifier(getVerifier(audience = jwtAudience, issuer = jwtIssuer))
             validate { credential ->
-                if (credential.payload.audience.contains(jwtAudience)) JWTPrincipal(credential.payload) else null
+
+                val it = credential.payload.getClaim("id").asInt()
+
+                when (it != null) {
+                    true -> JWTPrincipal(credential.payload)
+                    else -> null
+                }
             }
             challenge { defaultScheme, realm ->
                 call.defaultResponse(status = HttpStatusCode.Unauthorized, message = "Unauthorized")

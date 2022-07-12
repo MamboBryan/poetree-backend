@@ -39,7 +39,7 @@ fun Route.authRoutes(
 
                 when (user.hash == hash) {
                     true -> {
-                        val token = generateToken(issuer = issuer, audience = audience, user = user)
+                        val token = generateToken( issuer = issuer, audience = audience, user = user)
 
                         val data = mapOf(
                             "token" to token, "user" to user

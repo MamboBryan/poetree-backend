@@ -16,15 +16,4 @@ import kotlin.test.*
 import io.ktor.server.testing.*
 import com.mambobryan.plugins.*
 
-class ApplicationTest {
-    @Test
-    fun testRoot() = testApplication {
-        application {
-            configureRouting(hashFunction)
-        }
-        client.get("/").apply {
-            assertEquals(HttpStatusCode.OK, status)
-            assertEquals("Hello World!", bodyAsText())
-        }
-    }
-}
+class ApplicationTest

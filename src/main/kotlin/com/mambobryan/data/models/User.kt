@@ -1,7 +1,7 @@
 package com.mambobryan.data.models
 
 import com.mambobryan.utils.Exclude
-import com.mambobryan.utils.toDate
+import com.mambobryan.utils.toDateLong
 import com.mambobryan.utils.toDateAndTime
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
@@ -50,7 +50,7 @@ internal fun ResultRow?.toUser(): User? {
         username = this[Users.userName],
         imageUrl = this[Users.userImage],
         bio = this[Users.userBio],
-        dateOfBirth = this[Users.userDateOfBirth].toDate(),
+        dateOfBirth = this[Users.userDateOfBirth].toDateLong(),
         gender = this[Users.userGender]
     )
 }

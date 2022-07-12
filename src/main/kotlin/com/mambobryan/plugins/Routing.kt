@@ -1,6 +1,7 @@
 package com.mambobryan.plugins
 
 import com.mambobryan.routes.authRoutes
+import com.mambobryan.routes.userRoutes
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.routing.*
@@ -17,6 +18,8 @@ fun Application.configureRouting() {
             authRoutes(issuer = issuer, audience = audience)
 
             authenticate("auth-jwt") {
+
+                userRoutes()
 
             }
 
