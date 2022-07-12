@@ -19,7 +19,15 @@ suspend fun <T> ApplicationCall.successWithData(status: HttpStatusCode, message:
     )
 }
 
-fun ApplicationCall.getUserId(): Int? {
+fun ApplicationCall.getCurrentUserId(): Int? {
     val principal = this.principal<JWTPrincipal>()
     return principal?.payload?.getClaim("id")?.asInt()
+}
+
+fun ApplicationCall.getQuery(queryName: String): String? {
+    return this.request.queryParameters[queryName]
+}
+
+fun ApplicationCall.getUrlParameter(parameterName: String): String? {
+    return this.parameters[parameterName]
 }

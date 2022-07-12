@@ -19,7 +19,7 @@ fun Application.configureRouting() {
 
             authenticate("auth-jwt") {
 
-                userRoutes()
+                userRoutes(issuer = issuer, audience = audience)
 
             }
 

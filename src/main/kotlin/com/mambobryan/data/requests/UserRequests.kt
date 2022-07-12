@@ -5,5 +5,7 @@ data class UserUpdateRequest(
     val username: String?,
     val bio: String?,
     val dateOfBirth: String?,
-    val gender: Int?
+    val gender: Int?,
+    val imageUrl: String?,
+    val token: String?
 )

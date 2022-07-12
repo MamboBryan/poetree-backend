@@ -33,6 +33,7 @@ object Users : Table() {
     val userBio = text("user_bio").nullable()
     val userDateOfBirth = long("user_dob").nullable()
     val userGender = integer("user_gender").nullable()
+    val userToken = text("user_token").nullable()
 
     override val primaryKey: PrimaryKey = PrimaryKey(userEmail)
 
