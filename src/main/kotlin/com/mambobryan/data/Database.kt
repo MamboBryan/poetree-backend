@@ -1,6 +1,13 @@
 package com.mambobryan.data
 
-import com.mambobryan.data.models.Users
+import com.mambobryan.data.tables.topic.TopicsTable
+import com.mambobryan.data.tables.user.UsersTable
+import com.mambobryan.data.tables.comment.CommentLikesTable
+import com.mambobryan.data.tables.comment.CommentsTable
+import com.mambobryan.data.tables.poem.BookmarksTable
+import com.mambobryan.data.tables.poem.PoemLikesTable
+import com.mambobryan.data.tables.poem.PoemsTable
+import com.mambobryan.data.tables.poem.ReadsTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +27,16 @@ object Database {
         }
 
         transaction {
-            SchemaUtils.create(Users)
+            SchemaUtils.create(
+                UsersTable,
+                TopicsTable,
+                CommentsTable,
+                CommentLikesTable,
+                PoemsTable,
+                PoemLikesTable,
+                ReadsTable,
+                BookmarksTable
+            )
         }
     }
 

@@ -11,8 +11,8 @@ fun Application.module() {
 
     Database.init()
 
+    configureSecurity()
     configureRouting()
     configureSerialization()
-    configureSecurity()
 
 }

@@ -2,10 +2,12 @@ package com.mambobryan.routes
 
 import com.mambobryan.data.requests.AuthRequest
 import com.mambobryan.data.requests.ResetRequest
+import com.mambobryan.data.tables.user.User
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
 import com.mambobryan.utils.defaultResponse
+import com.mambobryan.utils.respond
 import com.mambobryan.utils.successWithData
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -29,11 +31,14 @@ fun Route.authRoutes(
                 status = HttpStatusCode.BadRequest, message = "Email or Password cannot be blank"
             )
 
-            val user = repository.getUserByEmail(request.email!!) ?: return@post call.defaultResponse(
-                status = HttpStatusCode.NotFound, message = "Failed Signing In"
-            )
-
             return@post try {
+
+                val response = repository.getUserByEmail(request.email!!)
+
+                val user = when (response.status.isSuccess()) {
+                    true -> response.data as User
+                    else -> return@post call.respond(response)
+                }
 
                 val hash = hashFunction(request.password!!)
 
@@ -70,18 +75,21 @@ fun Route.authRoutes(
                 status = HttpStatusCode.BadRequest, message = "Email or Password cannot be blank"
             )
 
-            val hash = hashFunction(request.password!!)
-
-            val user = repository.create(email = request.email!!, hash = hash) ?: return@post call.defaultResponse(
-                status = HttpStatusCode.Conflict, message = "Failed signing up"
-            )
-
             try {
+
+                val hash = hashFunction(request.password!!)
+
+                val response = repository.create(email = request.email!!, hash = hash)
+
+                val user = when (response.status.isSuccess()) {
+                    true -> response.data as User
+                    else -> return@post call.respond(response)
+                }
+
                 val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                 val data = mapOf(
-                    "token" to token,
-                    "user" to user
+                    "token" to token, "user" to user
                 )
 
                 call.successWithData(
@@ -103,6 +111,8 @@ fun Route.authRoutes(
             if (request.email.isNullOrBlank()) return@post call.defaultResponse(
                 status = HttpStatusCode.BadRequest, message = "Email cannot be blank"
             )
+
+            return@post call.defaultResponse(status = HttpStatusCode.OK, message = "Rest Link Sent")
 
         }
 
