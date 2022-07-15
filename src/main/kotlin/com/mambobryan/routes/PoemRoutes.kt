@@ -1,6 +1,7 @@
 package com.mambobryan.routes
 
 import com.mambobryan.data.requests.PoemRequest
+import com.mambobryan.repositories.BookmarkRepository
 import com.mambobryan.repositories.PoemsRepository
 import com.mambobryan.utils.*
 import io.ktor.http.*
@@ -10,7 +11,8 @@ import io.ktor.server.routing.*
 
 fun Route.poemRoutes() {
 
-    val repository = PoemsRepository()
+    val poemsRepository = PoemsRepository()
+    val bookmarkRepository = BookmarkRepository()
 
     route("poems") {
 
@@ -22,7 +24,7 @@ fun Route.poemRoutes() {
 
             val request = call.receive<PoemRequest>()
 
-            val response = repository.create(userId = currentUserId, request = request)
+            val response = poemsRepository.create(userId = currentUserId, request = request)
             call.respond(response)
 
         }
@@ -33,7 +35,7 @@ fun Route.poemRoutes() {
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
             )
 
-            val response = repository.getPoems(userId = currentUserId)
+            val response = poemsRepository.getPoems(userId = currentUserId)
             call.respond(response)
 
         }
@@ -49,12 +51,12 @@ fun Route.poemRoutes() {
             val topic = call.getQuery("topic")
 
             val response = when {
-                query != null && topic != null -> repository.getPoems(
+                query != null && topic != null -> poemsRepository.getPoems(
                     userId = currentUserId, topic = topic.toInt(), query = query
                 )
-                query != null -> repository.getPoems(userId = currentUserId, query = query)
-                topic != null -> repository.getPoems(userId = currentUserId, topic = topic.toInt())
-                else -> repository.getPoems(userId = currentUserId)
+                query != null -> poemsRepository.getPoems(userId = currentUserId, query = query)
+                topic != null -> poemsRepository.getPoems(userId = currentUserId, topic = topic.toInt())
+                else -> poemsRepository.getPoems(userId = currentUserId)
             }
 
             call.respond(response)
@@ -72,7 +74,7 @@ fun Route.poemRoutes() {
                     status = HttpStatusCode.BadRequest, message = "Invalid Id"
                 )
 
-                val response = repository.getPoem(userId = currentUserId, poemId = poemId)
+                val response = poemsRepository.getPoem(userId = currentUserId, poemId = poemId)
                 call.respond(response)
 
             }
@@ -88,7 +90,7 @@ fun Route.poemRoutes() {
 
                 val request = call.receive<PoemRequest>()
 
-                val response = repository.update(userId = currentUserId, poemId = poemId, request = request)
+                val response = poemsRepository.update(userId = currentUserId, poemId = poemId, request = request)
                 call.respond(response)
             }
 
@@ -101,7 +103,33 @@ fun Route.poemRoutes() {
                     status = HttpStatusCode.BadRequest, message = "Invalid Id"
                 )
 
-                val response = repository.delete(userId = currentUserId, poemId = poemId)
+                val response = poemsRepository.delete(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+            get("bookmark") {
+                val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val poemId = call.getUrlParameter("id").asUUID() ?: return@get call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
+                )
+
+                val response = bookmarkRepository.create(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+            get("unbookmark") {
+                val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val poemId = call.getUrlParameter("id").asUUID() ?: return@get call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
+                )
+
+                val response = bookmarkRepository.delete(userId = currentUserId, poemId = poemId)
                 call.respond(response)
             }
 

@@ -63,7 +63,7 @@ fun Application.configureSecurity() {
                 }
             }
             challenge { defaultScheme, realm ->
-                call.defaultResponse(status = HttpStatusCode.Unauthorized, message = "Unauthorized")
+                return@challenge call.defaultResponse(status = HttpStatusCode.Unauthorized, message = "Unauthorized")
             }
         }
     }
