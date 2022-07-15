@@ -1,7 +1,9 @@
 package com.mambobryan.routes
 
 import com.mambobryan.data.requests.PasswordResetRequest
+import com.mambobryan.data.requests.UserRequest
 import com.mambobryan.data.requests.UserUpdateRequest
+import com.mambobryan.data.tables.user.User
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
@@ -25,11 +27,9 @@ fun Route.userRoutes(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
             )
 
-            val users = repository.getUsers(id = userId)
-            when (users.isEmpty()) {
-                true -> call.defaultResponse( status = HttpStatusCode.OK, message = "No User found")
-                false -> call.successWithData(status = HttpStatusCode.OK, message = "Users Found", data = users)
-            }
+            val response = repository.getUsers(userId = userId)
+
+            return@get call.respond(response)
 
         }
 
@@ -43,13 +43,35 @@ fun Route.userRoutes(
                 status = HttpStatusCode.BadRequest, message = "Bad Request",
             )
 
-            val users = repository.getUsers(userId = userId, query = query)
-            when (users.isEmpty()) {
-                true -> call.defaultResponse(message = "No User found", status = HttpStatusCode.OK)
-                false -> call.successWithData(
-                    status = HttpStatusCode.OK, message = "Users Found", data = users
-                )
-            }
+            val response = repository.searchUsers(userId = userId, query = query)
+
+            return@get call.respond(response)
+
+        }
+
+        post("get") {
+
+            val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
+                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+            )
+
+            val request = call.receive<UserRequest>()
+
+            if (request.userId.isNullOrBlank()) return@post call.defaultResponse(
+                status = HttpStatusCode.BadRequest, message = "User Id cannot be null or blank"
+            )
+
+            val userId = request.userId.asUUID() ?: return@post call.defaultResponse(
+                status = HttpStatusCode.BadRequest, message = "Invalid user id"
+            )
+
+            if (currentUserId == userId) return@post call.redirectInternally("/users/me")
+
+            val user = repository.getUser(userId = userId) ?: return@post call.defaultResponse(
+                status = HttpStatusCode.NotFound, message = "User Not Found",
+            )
+
+            return@post call.respond(user)
 
         }
 
@@ -117,15 +139,7 @@ fun Route.userRoutes(
 
                 val request = call.receive<UserUpdateRequest>()
 
-                if (
-                    request.username.isNullOrBlank() &&
-                    request.bio.isNullOrBlank() &&
-                    request.email.isNullOrBlank() &&
-                    request.dateOfBirth.isNullOrBlank() &&
-                    request.imageUrl.isNullOrBlank() &&
-                    request.token.isNullOrBlank() &&
-                    (request.gender == null)
-                ) return@put call.defaultResponse(
+                if (request.username.isNullOrBlank() && request.bio.isNullOrBlank() && request.email.isNullOrBlank() && request.dateOfBirth.isNullOrBlank() && request.imageUrl.isNullOrBlank() && request.token.isNullOrBlank() && (request.gender == null)) return@put call.defaultResponse(
                     status = HttpStatusCode.BadRequest, "Enter all field to continue"
                 )
 
@@ -184,11 +198,14 @@ fun Route.userRoutes(
                     status = HttpStatusCode.Conflict, message = "New Password cannot be same as old password"
                 )
 
-                val user = repository.getUser(userId = userId) ?: return@put call.defaultResponse(
-                    status = HttpStatusCode.Unauthorized, message = "Unauthorized"
-                )
-
                 return@put try {
+
+                    val response = repository.getUser(userId = userId)
+
+                    val user = when (response.status.isSuccess()) {
+                        true -> response.data as User
+                        else -> return@put call.respond(response)
+                    }
 
                     val hash = hashFunction(request.oldPassword!!)
 
@@ -218,40 +235,14 @@ fun Route.userRoutes(
             }
 
             delete("delete") {
+
                 val id = call.getCurrentUserId() ?: return@delete call.defaultResponse(
                     status = HttpStatusCode.BadRequest, message = "Missing Id",
                 )
 
-                return@delete when (repository.delete(id)) {
-                    true -> call.defaultResponse(
-                        status = HttpStatusCode.BadRequest, message = "Failed deleting user",
-                    )
+                val response = repository.delete(id)
 
-                    false -> call.defaultResponse(
-                        status = HttpStatusCode.OK, message = "User deleted",
-                    )
-                }
-            }
-
-        }
-
-        route("{id}") {
-
-            get {
-
-//                val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-//                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-//                )
-
-                val userId = call.getUrlParameter("id") ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Missing Id",
-                )
-
-                val user = repository.getUser(userId = userId.toInt()) ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "User Not Found",
-                )
-
-                call.successWithData(status = HttpStatusCode.OK, message = "success", data = user)
+                return@delete call.respond(response)
 
             }
 

@@ -1,33 +1,16 @@
 package com.mambobryan.utils
 
-import com.mambobryan.data.Response
+import com.mambobryan.data.models.ServerResponse
 import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
-import io.ktor.server.response.*
 
-suspend fun ApplicationCall.defaultResponse(status: HttpStatusCode, message: String = "Error") {
-    return this.respond(
-        status = status, message = Response(success = status.isSuccess(), message = message, data = null)
-    )
-}
+fun defaultBadRequestResponse(message: String = "Bad Request") = ServerResponse(
+    status = HttpStatusCode.BadRequest, message = message, data = Any() ?: null
+)
 
-suspend fun <T> ApplicationCall.successWithData(status: HttpStatusCode, message: String = "Error", data: T) {
-    return this.respond(
-        status = status, message = Response(success = status.isSuccess(), message = message, data = data)
-    )
-}
+fun defaultOkResponse(message: String = "success", data: Any?) = ServerResponse(
+    status = HttpStatusCode.OK, message = message, data = data
+)
 
-fun ApplicationCall.getCurrentUserId(): Int? {
-    val principal = this.principal<JWTPrincipal>()
-    return principal?.payload?.getClaim("id")?.asInt()
-}
-
-fun ApplicationCall.getQuery(queryName: String): String? {
-    return this.request.queryParameters[queryName]
-}
-
-fun ApplicationCall.getUrlParameter(parameterName: String): String? {
-    return this.parameters[parameterName]
-}
+fun serverErrorResponse(message: String = "error") = ServerResponse(
+    status = HttpStatusCode.InternalServerError, message = message, data = null
+)

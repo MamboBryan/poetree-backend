@@ -1,6 +1,8 @@
 package com.mambobryan.plugins
 
 import com.mambobryan.routes.authRoutes
+import com.mambobryan.routes.poemRoutes
+import com.mambobryan.routes.topicRoutes
 import com.mambobryan.routes.userRoutes
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -20,6 +22,8 @@ fun Application.configureRouting() {
             authenticate("auth-jwt") {
 
                 userRoutes(issuer = issuer, audience = audience)
+                topicRoutes()
+                poemRoutes()
 
             }
 
