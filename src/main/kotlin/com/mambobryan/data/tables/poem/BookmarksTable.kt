@@ -2,7 +2,11 @@ package com.mambobryan.data.tables.poem
 
 import com.mambobryan.data.tables.topic.Topic
 import com.mambobryan.data.tables.topic.TopicsTable
+import com.mambobryan.data.tables.user.UserEntity
 import com.mambobryan.data.tables.user.UsersTable
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ResultRow
@@ -15,6 +19,16 @@ object BookmarksTable : UUIDTable() {
     val createdAt = datetime("created_at")
     val poemId = reference("poem_id", PoemsTable)
     val userId = reference("user_id", UsersTable)
+
+}
+
+class BookmarkEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+
+    companion object : UUIDEntityClass<BookmarkEntity>(BookmarksTable)
+
+    var createdAt by BookmarksTable.createdAt
+    var poem by PoemEntity referencedOn BookmarksTable.poemId
+    var user by UserEntity referencedOn BookmarksTable.userId
 
 }
 

@@ -20,7 +20,7 @@ class TopicsRepository {
         if (request.name.isNullOrBlank()) return defaultBadRequestResponse("invalid name")
         if (request.color.isNullOrBlank()) return defaultBadRequestResponse("invalid color")
         if (request.color.length < 7 || request.color.first().toString() != "#") return defaultBadRequestResponse(
-            "invalid color"
+            message = "invalid color"
         )
 
         var statement: InsertStatement<Number>? = null

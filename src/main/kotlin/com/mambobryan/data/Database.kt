@@ -8,6 +8,7 @@ import com.mambobryan.data.tables.poem.BookmarksTable
 import com.mambobryan.data.tables.poem.PoemLikesTable
 import com.mambobryan.data.tables.poem.PoemsTable
 import com.mambobryan.data.tables.poem.ReadsTable
+import com.mambobryan.data.tables.poem.relations.CompletePoemEntity
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ object Database {
         }
 
         transaction {
+            // tables
             SchemaUtils.create(
                 UsersTable,
                 TopicsTable,

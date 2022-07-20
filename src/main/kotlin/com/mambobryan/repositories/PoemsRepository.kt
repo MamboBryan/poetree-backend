@@ -3,12 +3,17 @@ package com.mambobryan.repositories
 import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
 import com.mambobryan.data.requests.PoemRequest
-import com.mambobryan.data.tables.poem.Poem
-import com.mambobryan.data.tables.poem.PoemsTable
+import com.mambobryan.data.tables.comment.CommentsTable
+import com.mambobryan.data.tables.poem.*
+import com.mambobryan.data.tables.poem.relations.CompletePoemEntity
+import com.mambobryan.data.tables.poem.relations.toPoemDto
+import com.mambobryan.data.tables.poem.toBookmark
 import com.mambobryan.data.tables.poem.toPoem
-import com.mambobryan.utils.defaultBadRequestResponse
-import com.mambobryan.utils.defaultOkResponse
-import com.mambobryan.utils.serverErrorResponse
+import com.mambobryan.data.tables.topic.TopicsTable
+import com.mambobryan.data.tables.topic.toTopic
+import com.mambobryan.data.tables.user.UsersTable
+import com.mambobryan.data.tables.user.toUser
+import com.mambobryan.utils.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
@@ -116,30 +121,98 @@ class PoemsRepository {
 
     }
 
-    suspend fun getPoems(userId: UUID) = query {
+    suspend fun getPoems(userId: UUID, page: Int = 1) = query {
+
+        val (limit, offset) = getLimitAndOffset(page)
 
         return@query try {
 
-            val poems = PoemsTable.selectAll().sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
+            val likes = PoemLikesTable.id.count().alias("likes")
+            val likeCondition = Op.build {
+                PoemLikesTable.poemId eq PoemsTable.id // and (PoemLikesTable.userId eq userId)
+            }
 
-            defaultOkResponse(
-                message = "success", data = poems
+            val bookmarks = BookmarksTable.id.count().alias("bookmarks")
+            val bookmarkCondition = Op.build {
+                BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId)
+            }
+
+            val reads = ReadsTable.id.count().alias("reads")
+            val readCondition = Op.build {
+                ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId)
+            }
+
+            val comments = CommentsTable.id.count().alias("comments")
+            val commentCondition = Op.build {
+                CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId)
+            }
+
+            val topicsCondition = Op.build { PoemsTable.topicId eq TopicsTable.id }
+
+            val columns = listOf(
+                *UsersTable.fields.toTypedArray(),
+                *PoemsTable.fields.toTypedArray(),
+                *TopicsTable.fields.toTypedArray(),
+//                *PoemLikesTable.fields.toTypedArray(),
+//                *BookmarksTable.fields.toTypedArray(),
+//                *ReadsTable.fields.toTypedArray(),
+//                *CommentsTable.fields.toTypedArray(),
             )
+
+            val list = CompletePoemEntity
+                .all()
+                .limit(limit, offset)
+                .map { it.toPoemDto() }
+
+//            val poems = PoemsTable.innerJoin(UsersTable)
+//                .innerJoin(TopicsTable)
+//                .join(PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { likeCondition })
+//                .join(BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmarkCondition })
+//                .join(ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
+//                .join(CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { commentCondition })
+//                .slice(
+//                    reads,
+//                    bookmarks,
+//                    likes,
+//                    comments,
+//                    *columns.toTypedArray()
+//                )
+//                .selectAll()
+//                .groupBy(
+//                    UsersTable.id,
+//                    PoemsTable.id,
+//                    PoemLikesTable.id,
+//                    BookmarksTable.id,
+//                    ReadsTable.id,
+//                    CommentsTable.id
+//                )
+//                .limit(limit, offset)
+//                .sortedByDescending { PoemsTable.updatedAt }.map {
+//                    it.toPoem()
+//                }
+
+            defaultOkResponse(message = "success", data = getPagedData(page = page, list = list))
 
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
+            serverErrorResponse(message = e.message.toString())
         }
 
     }
 
-    suspend fun getPoems(userId: UUID, query: String) = query {
+    suspend fun getPoems(userId: UUID, query: String, page: Int = 1) = query {
+
+        val (limit, offset) = getLimitAndOffset(page)
 
         return@query try {
 
-            val condition = Op.build { (PoemsTable.title.lowerCase() like "%$query%".lowercase() or (PoemsTable.content.lowerCase() like "%$query%".lowercase())) }
+            val condition =
+                Op.build { (PoemsTable.title.lowerCase() like "%$query%".lowercase() or (PoemsTable.content.lowerCase() like "%$query%".lowercase())) }
 
-            val poems = PoemsTable.select { condition }.sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
+            val poems = PoemsTable.select { condition }
+                .limit(n = limit, offset = offset)
+                .sortedByDescending { PoemsTable.updatedAt }
+                .map { it.toPoem() }
 
             defaultOkResponse(message = "success", data = poems)
 
@@ -150,7 +223,7 @@ class PoemsRepository {
 
     }
 
-    suspend fun getPoems(userId: UUID, topic: Int) = query {
+    suspend fun getPoems(userId: UUID, topic: Int, page: Int = 1) = query {
 
         return@query try {
 
@@ -177,6 +250,34 @@ class PoemsRepository {
             val poems = PoemsTable.select { condition }.sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
 
             defaultOkResponse(message = "success", data = poems)
+
+        } catch (e: Exception) {
+            println(e.localizedMessage)
+            serverErrorResponse(message = e.localizedMessage)
+        }
+
+    }
+
+    suspend fun markAsRead(userId: UUID, poemId: UUID): ServerResponse<out Any?> {
+
+        var statement: InsertStatement<Number>? = null
+
+        return try {
+
+            val exists = ReadsTable.select { ReadsTable.userId eq userId and (ReadsTable.poemId eq poemId) }
+                .firstOrNull() != null
+
+            if (exists) return defaultOkResponse(message = "poem already read", data = null)
+
+            query {
+                statement = ReadsTable.insert {
+                    it[ReadsTable.createdAt] = LocalDateTime.now()
+                    it[ReadsTable.userId] = userId
+                    it[ReadsTable.poemId] = poemId
+                }
+            }
+
+            defaultOkResponse(message = "read", data = statement?.resultedValues?.get(0).toBookmark())
 
         } catch (e: Exception) {
             println(e.localizedMessage)

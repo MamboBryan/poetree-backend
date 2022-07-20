@@ -46,24 +46,6 @@ fun Date?.toDateTimeString(): String? {
     return dateFormat.format(this)
 }
 
-fun Date.isValidAge(): Boolean {
-    val now = Calendar.getInstance()
-    val then = Calendar.getInstance()
-    then.time = this
-    val years = now[Calendar.YEAR] - then[Calendar.YEAR]
-    return years >= 15
-}
-
-fun LocalDate?.asDate(): Date? {
-    if (this == null) return null
-    return Date.from(this.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant())
-}
-
-fun LocalDateTime?.asDate(): Date? {
-    if (this == null) return null
-    return Date.from(this.atZone(ZoneId.systemDefault()).toInstant())
-}
-
 fun Date?.asLocalDate(): LocalDate? {
     if (this == null) return null
     return Instant.ofEpochMilli(this.time).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -72,4 +54,21 @@ fun Date?.asLocalDate(): LocalDate? {
 fun Date?.asLocalDateTime(): LocalDateTime? {
     if (this == null) return null
     return Instant.ofEpochMilli(this.time).atZone(ZoneId.systemDefault()).toLocalDateTime()
+}
+fun Date.isValidAge(): Boolean {
+    val now = Calendar.getInstance()
+    val then = Calendar.getInstance()
+    then.time = this
+    val years = now[Calendar.YEAR] - then[Calendar.YEAR]
+    return years >= 15
+}
+
+fun LocalDate?.toDate(): Date? {
+    if (this == null) return null
+    return Date.from(this.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant())
+}
+
+fun LocalDateTime?.toDate(): Date? {
+    if (this == null) return null
+    return Date.from(this.atZone(ZoneId.systemDefault()).toInstant())
 }

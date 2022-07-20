@@ -1,7 +1,12 @@
 package com.mambobryan.data.tables.poem
 
+import com.mambobryan.data.tables.topic.TopicEntity
 import com.mambobryan.data.tables.topic.TopicsTable
+import com.mambobryan.data.tables.user.UserEntity
 import com.mambobryan.data.tables.user.UsersTable
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ResultRow
@@ -21,6 +26,20 @@ object PoemsTable : UUIDTable() {
 
     val userId = reference("poem_user_id", UsersTable)
     val topicId = reference("poem_topic_id", TopicsTable)
+
+}
+
+class PoemEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+
+    companion object : UUIDEntityClass<PoemEntity>(PoemsTable)
+
+    var createdAt by PoemsTable.createdAt
+    var updatedAt by PoemsTable.updatedAt
+    var editedAt by PoemsTable.editedAt
+
+    var title by PoemsTable.title
+    var content by PoemsTable.content
+    var contentAsHtml by PoemsTable.contentAsHtml
 
 }
 

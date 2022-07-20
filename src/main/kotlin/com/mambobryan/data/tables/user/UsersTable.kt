@@ -1,7 +1,10 @@
 package com.mambobryan.data.tables.user
 
-import com.mambobryan.utils.Exclude
-import com.mambobryan.utils.toDateLong
+import com.mambobryan.data.tables.topic.Topic
+import com.mambobryan.utils.*
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.ResultRow
@@ -40,6 +43,79 @@ data class User(
     val dateOfBirth: LocalDate?,
     val gender: Int?
 )
+
+class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+
+    companion object : UUIDEntityClass<UserEntity>(UsersTable)
+
+    var createdAt by UsersTable.userCreatedAt
+    var updatedAt by UsersTable.userUpdatedAt
+    var setupAt by UsersTable.userSetupAt
+    var name by UsersTable.userName
+    var image by UsersTable.userImage
+    var bio by UsersTable.userBio
+    var dateOfBirth by UsersTable.userDateOfBirth
+    var gender by UsersTable.userGender
+    var email by UsersTable.userEmail
+    var hash by UsersTable.userHash
+
+
+}
+
+data class UserDto(
+    val id: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val name: String?,
+    val image: String?,
+    val bio: String?,
+    val dateOfBirth: String?,
+    val gender: Int?,
+)
+
+fun UserEntity?.toUser(): User? {
+    if (this == null) return null
+    return try {
+        User(
+            id = this.id.value,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            username = this.name,
+            imageUrl = this.image,
+            bio = this.bio,
+            dateOfBirth = this.dateOfBirth,
+            gender = this.gender,
+            setupAt = this.setupAt,
+            email = this.email,
+            hash = this.hash
+        )
+
+    } catch (e: Exception) {
+        val message = "UserEntity to User Error -> ${e.localizedMessage}"
+        println(message)
+        null
+    }
+}
+
+fun User?.toUserDto(): UserDto? {
+    if (this == null) return null
+    return try {
+        UserDto(
+            id = this.id.toString(),
+            createdAt = this.createdAt.toDate().toDateTimeString(),
+            updatedAt = this.updatedAt.toDate().toDateTimeString(),
+            name = this.username,
+            image = this.imageUrl,
+            bio = this.bio,
+            dateOfBirth = this.dateOfBirth.toDate().toDateString(),
+            gender = this.gender
+        )
+
+    } catch (e: Exception) {
+        println(e.localizedMessage)
+        null
+    }
+}
 
 internal fun ResultRow?.toUser(): User? {
     if (this == null) return null
