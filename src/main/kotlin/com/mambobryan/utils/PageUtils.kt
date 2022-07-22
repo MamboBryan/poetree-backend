@@ -16,11 +16,11 @@ fun getLimitAndOffset(page: Int): Pair<Int, Long> {
     }
 }
 
-fun <T> getPagedData(page: Int, list: List<T>): PageData<T> {
+fun <T> getPagedData(page: Int, result: List<T>): PageData<T> {
 
     val previousPage = if (page == 1) null else page - 1
     val nextPage = page + 1
 
-    return PageData(next = nextPage, previous = previousPage, list = list)
+    return PageData(next = nextPage, previous = previousPage, list = result)
 }
 

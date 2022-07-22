@@ -10,9 +10,7 @@ import com.mambobryan.data.tables.poem.relations.toPoemDto
 import com.mambobryan.data.tables.poem.toBookmark
 import com.mambobryan.data.tables.poem.toPoem
 import com.mambobryan.data.tables.topic.TopicsTable
-import com.mambobryan.data.tables.topic.toTopic
 import com.mambobryan.data.tables.user.UsersTable
-import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.utils.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -127,71 +125,61 @@ class PoemsRepository {
 
         return@query try {
 
-            val likes = PoemLikesTable.id.count().alias("likes")
-            val likeCondition = Op.build {
-                PoemLikesTable.poemId eq PoemsTable.id // and (PoemLikesTable.userId eq userId)
-            }
+            val readCondition = Op.build { ReadsTable.poemId eq PoemsTable.id }
+            val reads = ReadsTable.id.count()
+            val read =
+                exists(ReadsTable.select { ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId) })
 
-            val bookmarks = BookmarksTable.id.count().alias("bookmarks")
-            val bookmarkCondition = Op.build {
-                BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId)
-            }
+            val like = Op.build { PoemLikesTable.poemId eq PoemsTable.id }
+            val likes = PoemLikesTable.id.count()
+            val liked =
+                exists(PoemLikesTable.select { PoemLikesTable.poemId eq PoemsTable.id and (PoemLikesTable.userId eq userId) })
 
-            val reads = ReadsTable.id.count().alias("reads")
-            val readCondition = Op.build {
-                ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId)
-            }
+            val bookmark = Op.build { BookmarksTable.poemId eq PoemsTable.id }
+            val bookmarks = BookmarksTable.id.count()
+            val bookmarked =
+                exists(BookmarksTable.select { BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId) })
 
-            val comments = CommentsTable.id.count().alias("comments")
-            val commentCondition = Op.build {
-                CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId)
-            }
-
-            val topicsCondition = Op.build { PoemsTable.topicId eq TopicsTable.id }
+            val comment = Op.build { CommentsTable.poemId eq PoemsTable.id }
+            val comments = CommentsTable.id.count()
+            val commented =
+                exists(CommentsTable.select { CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId) })
 
             val columns = listOf(
-                *UsersTable.fields.toTypedArray(),
-                *PoemsTable.fields.toTypedArray(),
-                *TopicsTable.fields.toTypedArray(),
-//                *PoemLikesTable.fields.toTypedArray(),
-//                *BookmarksTable.fields.toTypedArray(),
-//                *ReadsTable.fields.toTypedArray(),
-//                *CommentsTable.fields.toTypedArray(),
+                reads, read,
+                bookmarks, bookmarked,
+                likes, liked,
+                comments, commented
             )
 
-            val list = CompletePoemEntity
-                .all()
-                .limit(limit, offset)
-                .map { it.toPoemDto() }
+            val list = PoemsTable.innerJoin(UsersTable)
+                .innerJoin(TopicsTable)
+                .join(otherTable = ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
+                .join(otherTable = BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmark })
+                .join(otherTable = PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { like })
+                .join(otherTable = CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { comment })
+                .slice(columns)
+                .selectAll()
+                .groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
+                .orderBy(PoemsTable.createdAt, SortOrder.DESC)
+                .limit(n = limit, offset = offset)
+                .map {
+                    mapOf(
+//                        "poem" to it[PoemsTable.title],
+//                        "topic" to it[TopicsTable.name],
+//                        "user" to it[UsersTable.userName],
+                        "liked" to it[liked],
+                        "likes" to it[likes],
+                        "bookmarked" to it[bookmarked],
+                        "bookmarks" to it[bookmarks],
+                        "read" to it[read],
+                        "reads" to it[reads],
+                        "commented" to it[commented],
+                        "comments" to it[comments],
+                    )
+                }
 
-//            val poems = PoemsTable.innerJoin(UsersTable)
-//                .innerJoin(TopicsTable)
-//                .join(PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { likeCondition })
-//                .join(BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmarkCondition })
-//                .join(ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
-//                .join(CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { commentCondition })
-//                .slice(
-//                    reads,
-//                    bookmarks,
-//                    likes,
-//                    comments,
-//                    *columns.toTypedArray()
-//                )
-//                .selectAll()
-//                .groupBy(
-//                    UsersTable.id,
-//                    PoemsTable.id,
-//                    PoemLikesTable.id,
-//                    BookmarksTable.id,
-//                    ReadsTable.id,
-//                    CommentsTable.id
-//                )
-//                .limit(limit, offset)
-//                .sortedByDescending { PoemsTable.updatedAt }.map {
-//                    it.toPoem()
-//                }
-
-            defaultOkResponse(message = "success", data = getPagedData(page = page, list = list))
+            defaultOkResponse(message = "success", data = getPagedData(page = page, result = list))
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -209,10 +197,8 @@ class PoemsRepository {
             val condition =
                 Op.build { (PoemsTable.title.lowerCase() like "%$query%".lowercase() or (PoemsTable.content.lowerCase() like "%$query%".lowercase())) }
 
-            val poems = PoemsTable.select { condition }
-                .limit(n = limit, offset = offset)
-                .sortedByDescending { PoemsTable.updatedAt }
-                .map { it.toPoem() }
+            val poems = PoemsTable.select { condition }.limit(n = limit, offset = offset)
+                .sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
 
             defaultOkResponse(message = "success", data = poems)
 

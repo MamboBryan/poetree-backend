@@ -73,6 +73,13 @@ data class UserDto(
     val gender: Int?,
 )
 
+data class UserMinimalDTO(
+    val id: String,
+    val createdAt: String?,
+    val name: String?,
+    val image: String?,
+)
+
 fun UserEntity?.toUser(): User? {
     if (this == null) return null
     return try {
@@ -93,6 +100,21 @@ fun UserEntity?.toUser(): User? {
     } catch (e: Exception) {
         val message = "UserEntity to User Error -> ${e.localizedMessage}"
         println(message)
+        null
+    }
+}
+
+fun User?.toMinimalUserDto(): UserMinimalDTO? {
+    if (this == null) return null
+    return try {
+        UserMinimalDTO(
+            id = this.id.toString(),
+            createdAt = this.createdAt.toDate().toDateTimeString(),
+            name = this.username,
+            image = this.imageUrl
+        )
+    } catch (e: Exception) {
+        println(e.localizedMessage)
         null
     }
 }

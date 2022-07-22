@@ -47,13 +47,22 @@ data class CompletePoemDto(
     val html: String?,
     val user: UserDto?,
     val topic: TopicDto?,
-    val likes: Long,
-    val bookmarks: Long,
-    val comments: Long,
     val reads: Long,
+    val read: Boolean = false,
+    val bookmarks: Long,
+    val bookmarked: Boolean = false,
+    val likes: Long,
+    val liked: Boolean = false,
+    val comments: Long,
+    val commented: Boolean = false
 )
 
-fun CompletePoemEntity?.toPoemDto(): CompletePoemDto? {
+fun CompletePoemEntity?.toPoemDto(
+    read: Boolean,
+    liked: Boolean,
+    bookmarked: Boolean,
+    hasComment: Boolean
+): CompletePoemDto? {
     if (this == null) return null
     return try {
 
@@ -70,10 +79,14 @@ fun CompletePoemEntity?.toPoemDto(): CompletePoemDto? {
             html = this.contentAsHtml,
             user = user.toUser().toUserDto(),
             topic = topic.toTopic().toTopicDto(),
-            likes = this.likes.count(),
             bookmarks = this.bookmarks.count(),
+            bookmarked = bookmarked,
+            likes = this.likes.count(),
+            liked = liked,
             comments = this.comments.count(),
-            reads = this.reads.count()
+            commented = hasComment,
+            reads = this.reads.count(),
+            read = read
         )
 
     } catch (e: Exception) {
