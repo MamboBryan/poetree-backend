@@ -2,14 +2,11 @@ package com.mambobryan.repositories
 
 import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
-import com.mambobryan.data.tables.user.User
-import com.mambobryan.data.tables.user.UsersTable
+import com.mambobryan.data.tables.user.*
 import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.data.tables.user.toUserList
-import com.mambobryan.utils.asLocalDate
-import com.mambobryan.utils.defaultOkResponse
-import com.mambobryan.utils.serverErrorResponse
-import com.mambobryan.utils.toDate
+import com.mambobryan.utils.*
+import io.ktor.utils.io.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
@@ -32,7 +29,9 @@ class UsersRepository {
                 }
             }
 
-            defaultOkResponse(message = "signed up successfully", data = statement?.resultedValues?.get(0).toUser())
+            val user = statement?.resultedValues?.get(0).toUser().toUserDto()
+
+            defaultOkResponse(message = "signed up successfully", data = user)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -50,35 +49,45 @@ class UsersRepository {
         gender: Int?,
         imageUrl: String? = null,
         token: String? = null
-    ): User? = query {
+    ): ServerResponse<out Any?> = query {
 
-        val now = LocalDateTime.now()
-        val dobAsDate = dateOfBirth.toDate()
+        try {
 
-        if (email.isNullOrBlank().not()) {
-            val exists = UsersTable.select { UsersTable.userEmail eq email!! }.firstOrNull() != null
-            if (exists) return@query null
+            val now = LocalDateTime.now()
+            val dobAsDate = dateOfBirth.toDate()
+
+            if (email.isNullOrBlank().not()) {
+                val exists = UsersTable.select { UsersTable.userEmail eq email!! }.firstOrNull() != null
+                if (exists) return@query defaultBadRequestResponse(message = "Invalid Email")
+            }
+
+            UsersTable.update({ UsersTable.id eq id }) {
+                it[UsersTable.userUpdatedAt] = now
+                it[UsersTable.userSetupAt] = now
+                if (!email.isNullOrBlank()) it[UsersTable.userEmail] = email
+                if (!username.isNullOrBlank()) it[UsersTable.userName] = username
+                if (!bio.isNullOrBlank()) it[UsersTable.userBio] = bio
+                if (dobAsDate != null) it[UsersTable.userDateOfBirth] = dobAsDate.asLocalDate()
+                if (gender != null) it[UsersTable.userGender] = gender
+                if (!imageUrl.isNullOrBlank()) it[UsersTable.userImage] = imageUrl
+                if (!token.isNullOrBlank()) it[UsersTable.userToken] = token
+            }
+
+            val user = UsersTable.select(UsersTable.id eq id).map { it.toUser().toUserDto() }.singleOrNull()
+
+            defaultOkResponse(message = "success", data = user)
+
+        } catch (e: Exception) {
+            println(e.localizedMessage)
+            serverErrorResponse(message = e.localizedMessage)
         }
 
-        UsersTable.update({ UsersTable.id eq id }) {
-            it[UsersTable.userUpdatedAt] = now
-            it[UsersTable.userSetupAt] = now
-            if (!email.isNullOrBlank()) it[UsersTable.userEmail] = email
-            if (!username.isNullOrBlank()) it[UsersTable.userName] = username
-            if (!bio.isNullOrBlank()) it[UsersTable.userBio] = bio
-            if (dobAsDate != null) it[UsersTable.userDateOfBirth] = dobAsDate.asLocalDate()
-            if (gender != null) it[UsersTable.userGender] = gender
-            if (!imageUrl.isNullOrBlank()) it[UsersTable.userImage] = imageUrl
-            if (!token.isNullOrBlank()) it[UsersTable.userToken] = token
-        }
-
-        UsersTable.select(UsersTable.id eq id).map { it.toUser() }.singleOrNull()
 
     }
 
     suspend fun getUser(userId: UUID) = query {
         try {
-            val user = UsersTable.select(UsersTable.id eq userId).map { it.toUser() }.singleOrNull()
+            val user = UsersTable.select(UsersTable.id eq userId).map { it.toUser().toUserDto() }.singleOrNull()
             defaultOkResponse(message = "success", data = user)
         } catch (e: Exception) {
             println(e.localizedMessage)

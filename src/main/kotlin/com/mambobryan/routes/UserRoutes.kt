@@ -114,20 +114,16 @@ fun Route.userRoutes(
                     status = HttpStatusCode.BadRequest, "Invalid gender"
                 )
 
-                val user = repository.update(
+                val response = repository.update(
                     id = userId,
                     email = request.email,
                     username = request.username,
                     bio = request.bio,
                     dateOfBirth = request.dateOfBirth,
                     gender = request.gender
-                ) ?: return@post call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "User Not Found",
                 )
 
-                call.successWithData(
-                    status = HttpStatusCode.Created, message = "User setup successfully", data = user
-                )
+                call.respond(response)
 
             }
 
@@ -162,7 +158,7 @@ fun Route.userRoutes(
                     )
                 }
 
-                val user = repository.update(
+                val response = repository.update(
                     id = userId,
                     email = request.email,
                     username = request.username,
@@ -171,13 +167,9 @@ fun Route.userRoutes(
                     gender = request.gender,
                     imageUrl = request.imageUrl,
                     token = request.token
-                ) ?: return@put call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "User Not Found",
                 )
 
-                call.successWithData(
-                    status = HttpStatusCode.Created, message = "User updated successfully", data = user
-                )
+                call.respond(response)
             }
 
             put("update-password") {
