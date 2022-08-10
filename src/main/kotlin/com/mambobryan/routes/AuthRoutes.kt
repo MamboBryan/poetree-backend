@@ -79,7 +79,7 @@ fun Route.authRoutes(
 
             if (request.password.isValidPassword().not()) return@post call.defaultResponse(
                 status = HttpStatusCode.BadRequest,
-                message = "Password must contain Uppercase, Lowercase, Number and Special Character"
+                message = "Password must be a minimum of 8 characters containing Uppercase, Lowercase, Number and Special Character"
             )
 
             try {
