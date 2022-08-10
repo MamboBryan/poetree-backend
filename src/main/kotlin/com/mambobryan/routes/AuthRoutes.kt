@@ -7,6 +7,7 @@ import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
 import com.mambobryan.utils.defaultResponse
+import com.mambobryan.utils.isValidPassword
 import com.mambobryan.utils.respond
 import com.mambobryan.utils.successWithData
 import io.ktor.http.*
@@ -54,6 +55,7 @@ fun Route.authRoutes(
                             status = HttpStatusCode.OK, message = "Signed Up successfully", data = data
                         )
                     }
+
                     false -> call.defaultResponse(
                         status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
                     )
@@ -73,6 +75,11 @@ fun Route.authRoutes(
 
             if (request.email.isNullOrBlank() or request.password.isNullOrBlank()) return@post call.defaultResponse(
                 status = HttpStatusCode.BadRequest, message = "Email or Password cannot be blank"
+            )
+
+            if (request.password.isValidPassword().not()) return@post call.defaultResponse(
+                status = HttpStatusCode.BadRequest,
+                message = "Password must contain Uppercase, Lowercase, Number and Special Character"
             )
 
             try {

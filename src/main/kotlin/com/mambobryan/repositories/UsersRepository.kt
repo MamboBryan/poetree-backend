@@ -31,7 +31,7 @@ class UsersRepository {
 
             val user = statement?.resultedValues?.get(0).toUser().toUserDto()
 
-            defaultOkResponse(message = "signed up successfully", data = user)
+            defaultCreatedResponse(message = "signed up successfully", data = user)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
