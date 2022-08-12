@@ -90,7 +90,7 @@ class UsersRepository {
             defaultOkResponse(message = "success", data = user)
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
+            serverErrorResponse(message = "Couldn't get user details")
         }
     }
 

@@ -79,15 +79,14 @@ fun Route.userRoutes(
         route("me") {
 
             get {
+
                 val userId = call.getCurrentUserId() ?: return@get call.defaultResponse(
                     status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
                 )
 
-                val user = repository.getUser(userId = userId) ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "I don't know you!",
-                )
+                val response = repository.getUser(userId = userId)
 
-                call.successWithData(status = HttpStatusCode.OK, message = "success", data = user)
+                call.respond(response)
 
             }
 
@@ -214,6 +213,7 @@ fun Route.userRoutes(
                                 status = HttpStatusCode.OK, message = "Password updated successfully", data = data
                             )
                         }
+
                         false -> call.defaultResponse(
                             status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
                         )

@@ -30,16 +30,16 @@ object Database {
         transaction {
 
             // delete tables
-            SchemaUtils.drop(
-                CommentsTable,
-                CommentLikesTable,
-                PoemLikesTable,
-                ReadsTable,
-                BookmarksTable,
-                TopicsTable,
-                PoemsTable,
-                UsersTable,
-            )
+//            SchemaUtils.drop(
+//                CommentsTable,
+//                CommentLikesTable,
+//                PoemLikesTable,
+//                ReadsTable,
+//                BookmarksTable,
+//                TopicsTable,
+//                PoemsTable,
+//                UsersTable,
+//            )
 
             // create tables
             SchemaUtils.create(
