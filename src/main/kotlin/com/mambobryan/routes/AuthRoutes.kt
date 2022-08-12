@@ -122,6 +122,8 @@ fun Route.authRoutes(
             /**
              * TODO
              *  1. verify user with email exists
+             *  1.a if user with email doesn't exist return error
+             *  1.b if user with email exists return true
              *  2. generate random 8 strong digit password
              *  3. send password to user email
              *  4. respond with either success or failure
