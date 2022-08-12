@@ -22,7 +22,11 @@ fun Long?.toDateAndTime(): String? {
 
 fun String?.toDateLong(): Long? {
     if (this == null) return null
-    return dateFormat.parse(this).time
+    return try {
+        dateFormat.parse(this).time
+    } catch (e: Exception) {
+        null
+    }
 }
 
 fun String?.toDate(): Date? {

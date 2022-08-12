@@ -1,5 +1,6 @@
 package com.mambobryan.utils
 
+import io.ktor.server.util.*
 import java.util.*
 
 fun String?.isValidEmail(): Boolean {
@@ -12,6 +13,16 @@ fun String?.isValidPassword(): Boolean {
     if (this.isNullOrBlank()) return false
     val passwordRegex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{4,}$"
     return passwordRegex.toRegex().matches(this) and (this.length >= 8)
+}
+
+fun String?.isValidUrl(): Boolean {
+    if (this.isNullOrBlank()) return false
+    val urlRegex = ("((http|https)://)(www.)?"
+            + "[a-zA-Z0-9@:%._\\+~#?&//=]"
+            + "{2,256}\\.[a-z]"
+            + "{2,6}\\b([-a-zA-Z0-9@:%"
+            + "._\\+~#?&//=]*)")
+    return urlRegex.toRegex().matches(this)
 }
 
 fun String?.asUUID(): UUID? {

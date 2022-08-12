@@ -135,8 +135,14 @@ fun Route.userRoutes(
 
                 val request = call.receive<UserUpdateRequest>()
 
-                if (request.username.isNullOrBlank() && request.bio.isNullOrBlank() && request.email.isNullOrBlank() && request.dateOfBirth.isNullOrBlank() && request.imageUrl.isNullOrBlank() && request.token.isNullOrBlank() && (request.gender == null)) return@put call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, "Enter all field to continue"
+                if (request.username.isNullOrBlank() &&
+                    request.bio.isNullOrBlank() &&
+                    request.email.isNullOrBlank() &&
+                    request.dateOfBirth.isNullOrBlank() &&
+                    request.imageUrl.isNullOrBlank() &&
+                    request.token.isNullOrBlank() &&
+                    (request.gender == null)) return@put call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, "All fields cannot be blank"
                 )
 
                 if (request.email != null && !request.email.isValidEmail()) return@put call.defaultResponse(
@@ -155,6 +161,12 @@ fun Route.userRoutes(
 
                     if (date.isValidAge().not()) return@put call.defaultResponse(
                         status = HttpStatusCode.BadRequest, "User Should be 15 years or older"
+                    )
+                }
+
+                if (request.imageUrl.isNullOrBlank().not()){
+                    if (request.imageUrl.isValidUrl().not()) return@put call.defaultResponse(
+                        status = HttpStatusCode.BadRequest, "Invalid image url."
                     )
                 }
 

@@ -56,8 +56,10 @@ class UsersRepository {
             val dobAsDate = dateOfBirth.toDate()
 
             if (email.isNullOrBlank().not()) {
-                val exists = UsersTable.select { UsersTable.userEmail eq email!! }.firstOrNull() != null
-                if (exists) return@query defaultBadRequestResponse(message = "Invalid Email")
+                val exists =
+                    UsersTable.select { UsersTable.userEmail eq email!! and (UsersTable.id neq id) }.empty().not()
+
+                if (exists) return@query defaultBadRequestResponse(message = "Email already registered to another account.")
             }
 
             UsersTable.update({ UsersTable.id eq id }) {
@@ -80,7 +82,6 @@ class UsersRepository {
             println(e.localizedMessage)
             serverErrorResponse(message = "Couldn't update user details")
         }
-
 
     }
 
