@@ -4,6 +4,7 @@ import com.mambobryan.data.requests.PasswordResetRequest
 import com.mambobryan.data.requests.UserRequest
 import com.mambobryan.data.requests.UserUpdateRequest
 import com.mambobryan.data.tables.user.User
+import com.mambobryan.data.tables.user.toUserDto
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
@@ -206,7 +207,7 @@ fun Route.userRoutes(
                             val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                             val data = mapOf(
-                                "token" to token, "user" to user
+                                "token" to token, "user" to user.toUserDto()
                             )
 
                             call.successWithData(

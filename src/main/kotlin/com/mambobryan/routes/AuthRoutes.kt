@@ -3,6 +3,7 @@ package com.mambobryan.routes
 import com.mambobryan.data.requests.AuthRequest
 import com.mambobryan.data.requests.ResetRequest
 import com.mambobryan.data.tables.user.User
+import com.mambobryan.data.tables.user.toUserDto
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
@@ -36,10 +37,9 @@ fun Route.authRoutes(
 
                 val response = repository.getUserByEmail(request.email!!)
 
-                val user = when (response.status.isSuccess()) {
-                    true -> response.data as User
-                    else -> return@post call.respond(response)
-                }
+                if (response.status.isSuccess().not()) return@post call.respond(response)
+
+                val user = response.data as User
 
                 val hash = hashFunction(request.password!!)
 
@@ -48,7 +48,7 @@ fun Route.authRoutes(
                         val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                         val data = mapOf(
-                            "token" to token, "user" to user
+                            "token" to token, "user" to user.toUserDto()
                         )
 
                         call.successWithData(
@@ -57,13 +57,13 @@ fun Route.authRoutes(
                     }
 
                     false -> call.defaultResponse(
-                        status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
+                        status = HttpStatusCode.Unauthorized, message = "Invalid Credentials"
                     )
                 }
 
             } catch (e: Exception) {
                 call.defaultResponse(
-                    status = HttpStatusCode.NotAcceptable, message = "Failed Signing in"
+                    status = HttpStatusCode.Unauthorized, message = "Failed Signing in"
                 )
             }
 
@@ -82,21 +82,20 @@ fun Route.authRoutes(
                 message = "Password must be a minimum of 8 characters containing Uppercase, Lowercase, Number and Special Character"
             )
 
-            try {
+            return@post try {
 
                 val hash = hashFunction(request.password!!)
 
                 val response = repository.create(email = request.email!!, hash = hash)
 
-                val user = when (response.status.isSuccess()) {
-                    true -> response.data as User
-                    else -> return@post call.respond(response)
-                }
+                if (response.status.isSuccess().not()) return@post call.respond(response)
+
+                val user = response.data as User
 
                 val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                 val data = mapOf(
-                    "token" to token, "user" to user
+                    "token" to token, "user" to user.toUserDto()
                 )
 
                 call.successWithData(
@@ -104,8 +103,9 @@ fun Route.authRoutes(
                 )
 
             } catch (e: Exception) {
-                return@post call.defaultResponse(
-                    status = HttpStatusCode.NotAcceptable, message = "Failed signing up"
+
+                call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Failed signing up"
                 )
             }
 

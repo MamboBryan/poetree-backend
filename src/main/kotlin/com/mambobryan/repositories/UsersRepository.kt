@@ -6,7 +6,6 @@ import com.mambobryan.data.tables.user.*
 import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.data.tables.user.toUserList
 import com.mambobryan.utils.*
-import io.ktor.utils.io.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
@@ -29,7 +28,7 @@ class UsersRepository {
                 }
             }
 
-            val user = statement?.resultedValues?.get(0).toUser().toUserDto()
+            val user = statement?.resultedValues?.get(0).toUser()
 
             defaultCreatedResponse(message = "signed up successfully", data = user)
 
@@ -118,7 +117,7 @@ class UsersRepository {
         try {
 
             val result = UsersTable.select { UsersTable.userEmail eq email }.map { it.toUser() }.singleOrNull()
-            defaultOkResponse(message = "user got successfuly", data = result)
+            defaultOkResponse(message = "user got successfully", data = result)
 
         } catch (e: Exception) {
 

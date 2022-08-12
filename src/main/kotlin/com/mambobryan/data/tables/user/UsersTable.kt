@@ -132,9 +132,9 @@ fun User?.toUserDto(): UserDto? {
             dateOfBirth = this.dateOfBirth.toDate().toDateString(),
             gender = this.gender
         )
-
     } catch (e: Exception) {
-        println(e.localizedMessage)
+        val message = "UserEntity to UserDTO Error -> ${e.localizedMessage}"
+        println(message)
         null
     }
 }

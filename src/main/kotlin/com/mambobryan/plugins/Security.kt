@@ -3,6 +3,7 @@ package com.mambobryan.plugins
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.mambobryan.data.tables.user.User
+import com.mambobryan.data.tables.user.UserDto
 import com.mambobryan.utils.asString
 import com.mambobryan.utils.defaultResponse
 import io.ktor.http.*
