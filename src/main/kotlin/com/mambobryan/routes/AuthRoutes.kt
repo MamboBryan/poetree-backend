@@ -119,6 +119,14 @@ fun Route.authRoutes(
                 status = HttpStatusCode.BadRequest, message = "Email cannot be blank"
             )
 
+            /**
+             * TODO
+             *  1. verify user with email exists
+             *  2. generate random 8 strong digit password
+             *  3. send password to user email
+             *  4. respond with either success or failure
+             */
+
             return@post call.defaultResponse(status = HttpStatusCode.OK, message = "Rest Link Sent")
 
         }
