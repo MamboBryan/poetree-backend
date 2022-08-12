@@ -78,7 +78,7 @@ class UsersRepository {
 
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
+            serverErrorResponse(message = "Couldn't update user details")
         }
 
 

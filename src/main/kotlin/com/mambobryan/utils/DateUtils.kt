@@ -7,8 +7,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
 
-
-val dateFormat = SimpleDateFormat("dd-MM-yyyy")
+val dateFormat = SimpleDateFormat("dd-MM-yyyy").also { it.isLenient = false }
 val dateTimeFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
 
 fun Long?.toDateLong(): String? {
@@ -28,7 +27,11 @@ fun String?.toDateLong(): Long? {
 
 fun String?.toDate(): Date? {
     if (this.isNullOrBlank()) return null
-    return dateFormat.parse(this)
+    return try {
+        dateFormat.parse(this)
+    } catch (e: Exception) {
+        null
+    }
 }
 
 fun String?.toDateTime(): Long? {
@@ -55,6 +58,7 @@ fun Date?.asLocalDateTime(): LocalDateTime? {
     if (this == null) return null
     return Instant.ofEpochMilli(this.time).atZone(ZoneId.systemDefault()).toLocalDateTime()
 }
+
 fun Date.isValidAge(): Boolean {
     val now = Calendar.getInstance()
     val then = Calendar.getInstance()
