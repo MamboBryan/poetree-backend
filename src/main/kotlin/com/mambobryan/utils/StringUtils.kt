@@ -1,6 +1,7 @@
 package com.mambobryan.utils
 
 import io.ktor.server.util.*
+import io.ktor.util.*
 import java.util.*
 
 fun String?.isValidEmail(): Boolean {
@@ -23,6 +24,12 @@ fun String?.isValidUrl(): Boolean {
             + "{2,6}\\b([-a-zA-Z0-9@:%"
             + "._\\+~#?&//=]*)")
     return urlRegex.toRegex().matches(this)
+}
+
+fun String?.isValidHexColor(): Boolean {
+    if (this.isNullOrBlank()) return false
+    val hexRegex = "^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})\$"
+    return hexRegex.toRegex().matches(this)
 }
 
 fun String?.asUUID(): UUID? {
