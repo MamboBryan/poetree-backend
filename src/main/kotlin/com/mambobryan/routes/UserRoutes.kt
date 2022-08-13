@@ -37,7 +37,7 @@ fun Route.userRoutes(
 
         }
 
-        post("get") {
+        post {
 
             val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
@@ -55,9 +55,9 @@ fun Route.userRoutes(
 
             if (currentUserId == userId) return@post call.redirectInternally("/users/me")
 
-            val user = repository.getUser(userId = userId)
+            val response = repository.getUserDetails(userId = userId)
 
-            return@post call.respond(user)
+            return@post call.respond(response)
 
         }
 
@@ -69,7 +69,7 @@ fun Route.userRoutes(
                     status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
                 )
 
-                val response = repository.getUser(userId = userId)
+                val response = repository.getUserDetails(userId = userId)
 
                 call.respond(response)
 

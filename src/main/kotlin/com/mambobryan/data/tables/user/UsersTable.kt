@@ -73,6 +73,20 @@ data class UserDto(
     val gender: Int?,
 )
 
+data class CompleteUserDto(
+    val id: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val name: String?,
+    val image: String?,
+    val bio: String?,
+    val dateOfBirth: String?,
+    val gender: Int?,
+    val reads: Long?,
+    val likes: Long?,
+    val bookmarks: Long?
+)
+
 data class UserMinimalDTO(
     val id: String,
     val createdAt: String?,
@@ -138,6 +152,30 @@ fun User?.toUserDto(): UserDto? {
         null
     }
 }
+
+fun User?.toCompleteUserDto(reads: Long?, bookmarks: Long?, likes: Long?): CompleteUserDto? {
+    if (this == null) return null
+    return try {
+        CompleteUserDto(
+            id = this.id.toString(),
+            createdAt = this.createdAt.toDate().toDateTimeString(),
+            updatedAt = this.updatedAt.toDate().toDateTimeString(),
+            name = this.username,
+            image = this.imageUrl,
+            bio = this.bio,
+            dateOfBirth = this.dateOfBirth.toDate().toDateString(),
+            gender = this.gender,
+            likes = likes,
+            reads = reads,
+            bookmarks = bookmarks
+        )
+    } catch (e: Exception) {
+        val message = "UserEntity to CompleteUserDto Error -> ${e.localizedMessage}"
+        println(message)
+        null
+    }
+}
+
 
 internal fun ResultRow?.toUser(): User? {
     if (this == null) return null

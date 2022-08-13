@@ -2,6 +2,10 @@ package com.mambobryan.repositories
 
 import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
+import com.mambobryan.data.tables.poem.BookmarksTable
+import com.mambobryan.data.tables.poem.PoemLikesTable
+import com.mambobryan.data.tables.poem.PoemsTable
+import com.mambobryan.data.tables.poem.ReadsTable
 import com.mambobryan.data.tables.user.*
 import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.data.tables.user.toUserList
@@ -105,13 +109,43 @@ class UsersRepository {
 
     }
 
-    suspend fun getUser(userId: UUID, formatToDto: Boolean = true) = query {
+    suspend fun getUser(userId: UUID, formatToDto: Boolean) = query {
         try {
             val user = UsersTable.select(UsersTable.id eq userId).map {
                 if (formatToDto) it.toUser().toUserDto()
                 else it.toUser()
             }.singleOrNull()
             defaultOkResponse(message = "success", data = user)
+        } catch (e: Exception) {
+            println(e.localizedMessage)
+            serverErrorResponse(message = "Couldn't get user")
+        }
+    }
+
+    suspend fun getUserDetails(userId: UUID) = query {
+        try {
+
+            val read = Op.build { ReadsTable.userId eq UsersTable.id }
+            val reads = ReadsTable.id.count()
+
+            val like = Op.build { PoemLikesTable.userId eq UsersTable.id }
+            val likes = PoemLikesTable.id.count()
+
+            val bookmark = Op.build { BookmarksTable.userId eq UsersTable.id }
+            val bookmarks = BookmarksTable.id.count()
+
+            val columns = listOf(reads, bookmarks, likes, *UsersTable.columns.toTypedArray())
+
+            val data =
+                UsersTable.join(otherTable = ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { read })
+                    .join(otherTable = BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmark })
+                    .join(otherTable = PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { like })
+                    .slice(columns).select(UsersTable.id eq userId).groupBy(UsersTable.id).map {
+                        it.toUser().toCompleteUserDto(reads = it[reads], bookmarks = it[bookmarks], likes = it[likes])
+                    }.singleOrNull()
+
+            defaultOkResponse(message = "success", data = data)
+
         } catch (e: Exception) {
             println(e.localizedMessage)
             serverErrorResponse(message = "Couldn't get user")
@@ -127,6 +161,7 @@ class UsersRepository {
                 true -> {
                     UsersTable.id neq userId
                 }
+
                 false -> {
                     UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
                 }
@@ -140,7 +175,9 @@ class UsersRepository {
                 .toUserList()
                 .map { it.toMinimalUserDto() }
 
-            defaultOkResponse(message = "users got successfully", data = users)
+            val data = getPagedData(page= page, result = users)
+
+            defaultOkResponse(message = "users got successfully", data = data)
 
         } catch (e: Exception) {
 
@@ -157,30 +194,6 @@ class UsersRepository {
 
             val result = UsersTable.select { UsersTable.userEmail eq email }.map { it.toUser() }.singleOrNull()
             defaultOkResponse(message = "user got successfully", data = result)
-
-        } catch (e: Exception) {
-
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
-
-        }
-
-    }
-
-    suspend fun searchUsers(userId: UUID, query: String, page: Int) = query {
-
-        val (limit, offset) = getLimitAndOffset(page)
-
-        try {
-
-            val condition = Op.build {
-                UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
-            }
-
-            val users =
-                UsersTable.select { condition }.limit(n = limit, offset = offset).map { it.toUser().toMinimalUserDto() }
-
-            defaultOkResponse(message = "users got successfully", data = users)
 
         } catch (e: Exception) {
 
