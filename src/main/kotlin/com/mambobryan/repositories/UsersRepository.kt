@@ -118,13 +118,22 @@ class UsersRepository {
         }
     }
 
-    suspend fun getUsers(userId: UUID, page: Int = 1) = query {
+    suspend fun getUsers(userId: UUID, query: String, page: Int = 1) = query {
 
         val (limit, offset) = getLimitAndOffset(page)
 
-        try {
+        val condition = Op.build {
+            when (query.isBlank()) {
+                true -> {
+                    UsersTable.id neq userId
+                }
+                false -> {
+                    UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
+                }
+            }
+        }
 
-            val condition = Op.build { UsersTable.id neq userId }
+        try {
 
             val users = UsersTable.select { condition }
                 .limit(n = limit, offset = offset)
@@ -158,7 +167,9 @@ class UsersRepository {
 
     }
 
-    suspend fun searchUsers(userId: UUID, query: String) = query {
+    suspend fun searchUsers(userId: UUID, query: String, page: Int) = query {
+
+        val (limit, offset) = getLimitAndOffset(page)
 
         try {
 
@@ -166,7 +177,9 @@ class UsersRepository {
                 UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
             }
 
-            val users = UsersTable.select { condition }.map { it.toUser() }
+            val users =
+                UsersTable.select { condition }.limit(n = limit, offset = offset).map { it.toUser().toMinimalUserDto() }
+
             defaultOkResponse(message = "users got successfully", data = users)
 
         } catch (e: Exception) {

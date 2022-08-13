@@ -27,25 +27,11 @@ fun Route.userRoutes(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
             )
 
+            val name = call.getQuery(queryName = QueryUtils.NAME) ?: ""
+
             val page = call.getQuery(QueryUtils.PAGE)?.toInt() ?: 1
 
-            val response = repository.getUsers(userId = userId, page = page)
-
-            return@get call.respond(response)
-
-        }
-
-        get("search") {
-
-            val userId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-            )
-
-            val query = call.getQuery(queryName = "query") ?: return@get call.defaultResponse(
-                status = HttpStatusCode.BadRequest, message = "Bad Request",
-            )
-
-            val response = repository.searchUsers(userId = userId, query = query)
+            val response = repository.getUsers(userId = userId, query = name, page = page)
 
             return@get call.respond(response)
 
