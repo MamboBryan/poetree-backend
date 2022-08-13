@@ -1,21 +1,15 @@
 package com.mambobryan.routes
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.JWTCreator
 import com.mambobryan.data.requests.PasswordResetRequest
 import com.mambobryan.data.requests.UserRequest
 import com.mambobryan.data.requests.UserUpdateRequest
 import com.mambobryan.data.tables.user.User
-import com.mambobryan.data.tables.user.toUserDto
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
-import com.mambobryan.plugins.setTokenExpiry
 import com.mambobryan.repositories.UsersRepository
 import com.mambobryan.utils.*
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 
@@ -117,7 +111,7 @@ fun Route.userRoutes(
                     status = HttpStatusCode.BadRequest, "Invalid gender"
                 )
 
-                if((request.bio != null) && (request.bio.length > 125)) return@post call.defaultResponse(
+                if ((request.bio != null) && (request.bio.length > 125)) return@post call.defaultResponse(
                     status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
                 )
 
@@ -171,7 +165,7 @@ fun Route.userRoutes(
                     )
                 }
 
-                if((request.bio != null) && (request.bio.length > 125)) return@put call.defaultResponse(
+                if ((request.bio != null) && (request.bio.length > 125)) return@put call.defaultResponse(
                     status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
                 )
 
