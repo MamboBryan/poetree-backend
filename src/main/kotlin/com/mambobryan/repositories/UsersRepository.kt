@@ -40,7 +40,6 @@ class UsersRepository {
 
     }
 
-
     suspend fun updatePassword(id: UUID, hash: String): ServerResponse<out Any?> = query {
         return@query try {
 
@@ -108,13 +107,10 @@ class UsersRepository {
 
     suspend fun getUser(userId: UUID, formatToDto: Boolean = true) = query {
         try {
-            val user = UsersTable.select(UsersTable.id eq userId)
-                .map {
-                    if (formatToDto)
-                        it.toUser().toUserDto()
-                    else
-                        it.toUser()
-                }.singleOrNull()
+            val user = UsersTable.select(UsersTable.id eq userId).map {
+                if (formatToDto) it.toUser().toUserDto()
+                else it.toUser()
+            }.singleOrNull()
             defaultOkResponse(message = "success", data = user)
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -122,13 +118,19 @@ class UsersRepository {
         }
     }
 
-    suspend fun getUsers(userId: UUID) = query {
+    suspend fun getUsers(userId: UUID, page: Int = 1) = query {
+
+        val (limit, offset) = getLimitAndOffset(page)
 
         try {
 
             val condition = Op.build { UsersTable.id neq userId }
 
-            val users = UsersTable.select { condition }.toUserList()
+            val users = UsersTable.select { condition }
+                .limit(n = limit, offset = offset)
+                .toUserList()
+                .map { it.toMinimalUserDto() }
+
             defaultOkResponse(message = "users got successfully", data = users)
 
         } catch (e: Exception) {
