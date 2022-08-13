@@ -117,6 +117,10 @@ fun Route.userRoutes(
                     status = HttpStatusCode.BadRequest, "Invalid gender"
                 )
 
+                if((request.bio != null) && (request.bio.length > 125)) return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
+                )
+
                 val response = repository.update(
                     id = userId,
                     email = request.email,
@@ -166,6 +170,10 @@ fun Route.userRoutes(
                         status = HttpStatusCode.BadRequest, "Invalid image url."
                     )
                 }
+
+                if((request.bio != null) && (request.bio.length > 125)) return@put call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
+                )
 
                 val response = repository.update(
                     id = userId,
