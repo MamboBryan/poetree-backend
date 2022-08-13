@@ -1,5 +1,7 @@
 package com.mambobryan.routes
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTCreator
 import com.mambobryan.data.requests.PasswordResetRequest
 import com.mambobryan.data.requests.UserRequest
 import com.mambobryan.data.requests.UserUpdateRequest
@@ -7,10 +9,13 @@ import com.mambobryan.data.tables.user.User
 import com.mambobryan.data.tables.user.toUserDto
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
+import com.mambobryan.plugins.setTokenExpiry
 import com.mambobryan.repositories.UsersRepository
 import com.mambobryan.utils.*
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 
@@ -68,9 +73,7 @@ fun Route.userRoutes(
 
             if (currentUserId == userId) return@post call.redirectInternally("/users/me")
 
-            val user = repository.getUser(userId = userId) ?: return@post call.defaultResponse(
-                status = HttpStatusCode.NotFound, message = "User Not Found",
-            )
+            val user = repository.getUser(userId = userId)
 
             return@post call.respond(user)
 
@@ -135,13 +138,7 @@ fun Route.userRoutes(
 
                 val request = call.receive<UserUpdateRequest>()
 
-                if (request.username.isNullOrBlank() &&
-                    request.bio.isNullOrBlank() &&
-                    request.email.isNullOrBlank() &&
-                    request.dateOfBirth.isNullOrBlank() &&
-                    request.imageUrl.isNullOrBlank() &&
-                    request.token.isNullOrBlank() &&
-                    (request.gender == null)) return@put call.defaultResponse(
+                if (request.username.isNullOrBlank() && request.bio.isNullOrBlank() && request.email.isNullOrBlank() && request.dateOfBirth.isNullOrBlank() && request.imageUrl.isNullOrBlank() && request.token.isNullOrBlank() && (request.gender == null)) return@put call.defaultResponse(
                     status = HttpStatusCode.BadRequest, "All fields cannot be blank"
                 )
 
@@ -164,7 +161,7 @@ fun Route.userRoutes(
                     )
                 }
 
-                if (request.imageUrl.isNullOrBlank().not()){
+                if (request.imageUrl.isNullOrBlank().not()) {
                     if (request.imageUrl.isValidUrl().not()) return@put call.defaultResponse(
                         status = HttpStatusCode.BadRequest, "Invalid image url."
                     )
@@ -186,8 +183,6 @@ fun Route.userRoutes(
 
             put("update-password") {
 
-                val hashFunction: (String) -> String = { pass: String -> hash(password = pass) }
-
                 val userId = call.getCurrentUserId() ?: return@put call.defaultResponse(
                     status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
                 )
@@ -199,37 +194,41 @@ fun Route.userRoutes(
                 )
 
                 if (request.oldPassword.equals(request.newPassword)) return@put call.defaultResponse(
-                    status = HttpStatusCode.Conflict, message = "New Password cannot be same as old password"
+                    status = HttpStatusCode.BadRequest, message = "New Password cannot be same as old password"
                 )
 
                 return@put try {
 
-                    val response = repository.getUser(userId = userId)
+                    val response = repository.getUser(userId = userId, formatToDto = false)
 
                     val user = when (response.status.isSuccess()) {
                         true -> response.data as User
                         else -> return@put call.respond(response)
                     }
 
-                    val hash = hashFunction(request.oldPassword!!)
+                    val hash = hash(request.oldPassword!!)
 
-                    when (user.hash == hash) {
-                        true -> {
-                            val token = generateToken(issuer = issuer, audience = audience, user = user)
+                    if (user.hash != hash) return@put call.defaultResponse(
+                        status = HttpStatusCode.Unauthorized, message = "Invalid Credentials"
+                    )
 
-                            val data = mapOf(
-                                "token" to token, "user" to user.toUserDto()
-                            )
+                    val newHash = hash(request.newPassword!!)
 
-                            call.successWithData(
-                                status = HttpStatusCode.OK, message = "Password updated successfully", data = data
-                            )
-                        }
+                    val updateResponse = repository.updatePassword(userId, newHash)
 
-                        false -> call.defaultResponse(
-                            status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
-                        )
-                    }
+                    if (updateResponse.status.isSuccess().not()) return@put call.respond(updateResponse)
+
+                    /**
+                     * TODO
+                     * 1. Invalidate user token
+                     */
+                    val token = generateToken(issuer = issuer, audience = audience, user = user)
+
+                    val data = mapOf("token" to token)
+
+                    call.successWithData(
+                        status = HttpStatusCode.OK, message = "Password updated successfully", data = data
+                    )
 
                 } catch (e: Exception) {
                     call.defaultResponse(
@@ -242,10 +241,15 @@ fun Route.userRoutes(
             delete("delete") {
 
                 val id = call.getCurrentUserId() ?: return@delete call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Missing Id",
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed",
                 )
 
                 val response = repository.delete(id)
+
+                /**
+                 * TODO
+                 * 1. Invalidate user token
+                 */
 
                 return@delete call.respond(response)
 

@@ -19,7 +19,11 @@ private val secret = System.getenv("SECRET_KEY")
 
 private val algorithm = Algorithm.HMAC512(secret)
 
-private fun expiresAt() = Date(System.currentTimeMillis() + 3_600_000 * 24)
+private fun expiresAt(): Date {
+    val now = Calendar.getInstance()
+    now.set(Calendar.DAY_OF_YEAR, now[Calendar.DAY_OF_YEAR] + 30)
+    return now.time
+}
 
 fun hash(password: String): String {
     val key = hex(secret)
@@ -43,6 +47,14 @@ fun generateToken(issuer: String, audience: String, user: User): String = JWT
     .withClaim("id", user.id.asString())
     .sign(algorithm)
 
+fun setTokenExpiry(issuer: String, audience: String,keyId: String) = JWT
+    .create()
+    .withAudience(audience)
+    .withIssuer(issuer)
+    .withKeyId(keyId)
+    .withExpiresAt(Date())
+    .sign(algorithm)
+
 fun Application.configureSecurity() {
 
     val jwtAudience = environment.config.property("jwt.audience").getString()
@@ -55,6 +67,7 @@ fun Application.configureSecurity() {
             realm = jwtRealm
 
             verifier(getVerifier(audience = jwtAudience, issuer = jwtIssuer))
+
             validate { credential ->
 
                 val it = credential.payload.getClaim("id").asString()
@@ -63,9 +76,11 @@ fun Application.configureSecurity() {
                     else -> null
                 }
             }
+
             challenge { defaultScheme, realm ->
                 return@challenge call.defaultResponse(status = HttpStatusCode.Unauthorized, message = "Unauthorized")
             }
+
         }
     }
 

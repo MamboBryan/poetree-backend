@@ -9,6 +9,7 @@ import com.mambobryan.utils.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -35,6 +36,26 @@ class UsersRepository {
         } catch (e: Exception) {
             println(e.localizedMessage)
             serverErrorResponse(message = e.localizedMessage)
+        }
+
+    }
+
+
+    suspend fun updatePassword(id: UUID, hash: String): ServerResponse<out Any?> = query {
+        return@query try {
+
+            UsersTable.update({ UsersTable.id eq id }) {
+                it[UsersTable.userUpdatedAt] = LocalDateTime.now()
+                it[UsersTable.userHash] = hash
+            }
+
+            defaultCreatedResponse(message = "password updated", data = null)
+
+        } catch (e: Exception) {
+
+            println(e.localizedMessage)
+            serverErrorResponse(message = e.localizedMessage)
+
         }
 
     }
@@ -85,13 +106,19 @@ class UsersRepository {
 
     }
 
-    suspend fun getUser(userId: UUID) = query {
+    suspend fun getUser(userId: UUID, formatToDto: Boolean = true) = query {
         try {
-            val user = UsersTable.select(UsersTable.id eq userId).map { it.toUser().toUserDto() }.singleOrNull()
+            val user = UsersTable.select(UsersTable.id eq userId)
+                .map {
+                    if (formatToDto)
+                        it.toUser().toUserDto()
+                    else
+                        it.toUser()
+                }.singleOrNull()
             defaultOkResponse(message = "success", data = user)
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = "Couldn't get user details")
+            serverErrorResponse(message = "Couldn't get user")
         }
     }
 
