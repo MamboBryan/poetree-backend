@@ -39,7 +39,7 @@ class CommentsRepository {
 
             val data = statement?.resultedValues?.get(0).toComment().toCommentDto()
 
-            return defaultOkResponse(message = "comment created", data = data)
+            return defaultCreatedResponse(message = "comment created", data = data)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
