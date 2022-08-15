@@ -100,6 +100,37 @@ fun Route.poemRoutes() {
                 call.respond(response)
             }
 
+            // bookmark poem as read
+            post("bookmark") {
+                val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = bookmarkRepository.create(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+            delete("un-bookmark") {
+                val currentUserId = call.getCurrentUserId() ?: return@delete call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@delete call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = bookmarkRepository.delete(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
         }
 
         // get poem list, enables searching by string (q), topic and page
@@ -133,19 +164,6 @@ fun Route.poemRoutes() {
         }
 
         route("{id}") {
-
-            get("read") {
-                val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-                )
-
-                val poemId = call.getUrlParameter("id").asUUID() ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
-                )
-
-                val response = poemsRepository.markAsRead(userId = currentUserId, poemId = poemId)
-                call.respond(response)
-            }
 
             get("bookmark") {
                 val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(

@@ -355,7 +355,6 @@ class PoemsRepository {
 
     suspend fun markAsRead(userId: UUID, poemId: UUID): ServerResponse<out Any?> {
 
-
         return try {
 
             query { PoemsTable.select(PoemsTable.id eq poemId).firstOrNull() }
