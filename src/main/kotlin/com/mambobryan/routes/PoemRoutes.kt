@@ -21,6 +21,7 @@ fun Route.poemRoutes() {
 
     route("poems") {
 
+        // create poem
         post {
 
             val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
@@ -35,6 +36,73 @@ fun Route.poemRoutes() {
 
         }
 
+        route("poem") {
+
+            // get poem
+            post {
+
+                val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = poemsRepository.getPoem(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+            // update poem
+            put {
+                val currentUserId = call.getCurrentUserId() ?: return@put call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val response = poemsRepository.update(userId = currentUserId, request = request)
+                call.respond(response)
+
+            }
+
+            // delete poem
+            delete {
+                val currentUserId = call.getCurrentUserId() ?: return@delete call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@delete call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = poemsRepository.delete(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+            // mark poem as read
+            post("read") {
+                val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+                )
+
+                val request = call.receive<PoemRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = poemsRepository.markAsRead(userId = currentUserId, poemId = poemId)
+                call.respond(response)
+            }
+
+        }
+
+        // get poem list, enables searching by string (q), topic and page
         get {
 
             val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
@@ -65,49 +133,6 @@ fun Route.poemRoutes() {
         }
 
         route("{id}") {
-
-            get {
-
-                val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-                )
-
-                val poemId = call.getUrlParameter("id").asUUID() ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
-                )
-
-                val response = poemsRepository.getPoem(userId = currentUserId, poemId = poemId)
-                call.respond(response)
-
-            }
-
-            put {
-                val currentUserId = call.getCurrentUserId() ?: return@put call.defaultResponse(
-                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-                )
-
-                val poemId = call.getUrlParameter("id").asUUID() ?: return@put call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
-                )
-
-                val request = call.receive<PoemRequest>()
-
-                val response = poemsRepository.update(userId = currentUserId, poemId = poemId, request = request)
-                call.respond(response)
-            }
-
-            delete {
-                val currentUserId = call.getCurrentUserId() ?: return@delete call.defaultResponse(
-                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-                )
-
-                val poemId = call.getUrlParameter("id").asUUID() ?: return@delete call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Invalid Id"
-                )
-
-                val response = poemsRepository.delete(userId = currentUserId, poemId = poemId)
-                call.respond(response)
-            }
 
             get("read") {
                 val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(

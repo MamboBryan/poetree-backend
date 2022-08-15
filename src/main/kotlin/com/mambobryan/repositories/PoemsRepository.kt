@@ -8,6 +8,10 @@ import com.mambobryan.data.tables.poem.*
 import com.mambobryan.data.tables.topic.TopicsTable
 import com.mambobryan.data.tables.user.UsersTable
 import com.mambobryan.utils.*
+import io.ktor.http.*
+import io.ktor.server.application.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.bitwiseAnd
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -62,35 +66,51 @@ class PoemsRepository {
 
     }
 
-    suspend fun update(userId: UUID, poemId: UUID, request: PoemRequest): ServerResponse<out Any?> = query {
+    suspend fun update(userId: UUID, request: PoemRequest): ServerResponse<out Any?> {
 
-        if (request.title.isNullOrBlank() && request.content.isNullOrBlank() && request.html.isNullOrBlank() && request.topic == null) return@query defaultBadRequestResponse(
-            "Invalid title, content, html or topic"
+        val id = request.poemId
+
+        if (id.isNullOrBlank() || id.asUUID() == null) return defaultBadRequestResponse(
+            message = "Invalid poem id"
         )
 
-        val condition = Op.build { PoemsTable.id eq poemId and (PoemsTable.userId eq userId) }
+        if (request.title.isNullOrBlank() && request.content.isNullOrBlank() && request.html.isNullOrBlank() && request.topic == null) return defaultBadRequestResponse(
+            "Invalid update details, update at least one field"
+        )
 
-        PoemsTable.select(condition).singleOrNull() ?: defaultBadRequestResponse("This poem is not yours!")
+        val result = query {
 
-        return@query try {
+            val condition = Op.build { PoemsTable.id eq id.asUUID() and (PoemsTable.userId eq userId) }
 
-            PoemsTable.update({ condition }) {
-                it[PoemsTable.updatedAt] = LocalDateTime.now()
-                it[PoemsTable.editedAt] = LocalDateTime.now()
-                if (!request.title.isNullOrBlank()) it[PoemsTable.title] = request.title
-                if (!request.content.isNullOrBlank()) it[PoemsTable.content] = request.content
-                if (!request.html.isNullOrBlank()) it[PoemsTable.contentAsHtml] = request.html
-                if (request.topic != null) it[PoemsTable.topicId] = request.topic
+            return@query try {
+
+                if (request.topic != null) TopicsTable.select(TopicsTable.id eq request.topic).firstOrNull()
+                    ?: return@query defaultBadRequestResponse(message = "Invalid Topic Id")
+
+                PoemsTable.select(condition).singleOrNull()
+                    ?: return@query defaultBadRequestResponse(message = "This poem is not yours!")
+
+                PoemsTable.update({ condition }) {
+                    it[PoemsTable.updatedAt] = LocalDateTime.now()
+                    it[PoemsTable.editedAt] = LocalDateTime.now()
+                    if (!request.title.isNullOrBlank()) it[PoemsTable.title] = request.title
+                    if (!request.content.isNullOrBlank()) it[PoemsTable.content] = request.content
+                    if (!request.html.isNullOrBlank()) it[PoemsTable.contentAsHtml] = request.html
+                    if (request.topic != null) it[PoemsTable.topicId] = request.topic
+                }
+
+                null
+
+            } catch (e: Exception) {
+                println(e.localizedMessage)
+                serverErrorResponse(message = e.localizedMessage)
             }
 
-            val updatedPoem = PoemsTable.select { condition }.firstOrNull().toPoem()
-
-            defaultOkResponse(message = "poem updated", data = updatedPoem)
-
-        } catch (e: Exception) {
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
         }
+
+        if (result != null) return result
+
+        return getPoem(userId = userId, poemId = id.asUUID()!!)
 
     }
 
@@ -101,7 +121,7 @@ class PoemsRepository {
             val result = PoemsTable.deleteWhere { PoemsTable.id eq poemId and (PoemsTable.userId eq userId) }
 
             when (result != 0) {
-                true -> defaultOkResponse(message = "poem deleted", data = true)
+                true -> defaultOkResponse(message = "poem deleted", data = null)
                 false -> serverErrorResponse(message = "unable to delete poem")
             }
 
@@ -310,11 +330,8 @@ class PoemsRepository {
 
             val selectCondition = Op.build { PoemsTable.userId eq userId }
 
-            val data = query.select(selectCondition)
-                .groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
-                .orderBy(PoemsTable.createdAt, SortOrder.DESC)
-                .limit(n = limit, offset = offset)
-                .map {
+            val data = query.select(selectCondition).groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
+                .orderBy(PoemsTable.createdAt, SortOrder.DESC).limit(n = limit, offset = offset).map {
                     it.toCompletePoemDto(
                         read = it[read],
                         reads = it[reads],
@@ -338,24 +355,26 @@ class PoemsRepository {
 
     suspend fun markAsRead(userId: UUID, poemId: UUID): ServerResponse<out Any?> {
 
-        var statement: InsertStatement<Number>? = null
 
         return try {
 
-            val exists = ReadsTable.select { ReadsTable.userId eq userId and (ReadsTable.poemId eq poemId) }
-                .firstOrNull() != null
+            query { PoemsTable.select(PoemsTable.id eq poemId).firstOrNull() }
+                ?: return defaultNotFoundResponse(message = "poem not found")
 
-            if (exists) return defaultOkResponse(message = "poem already read", data = null)
+            val read = query {
+                ReadsTable.select { ReadsTable.userId eq userId and (ReadsTable.poemId eq poemId) }.firstOrNull()
+            }
+            if (read != null) return defaultOkResponse(message = "poem already read. \n no pun intended", data = null)
 
             query {
-                statement = ReadsTable.insert {
+                ReadsTable.insert {
                     it[ReadsTable.createdAt] = LocalDateTime.now()
                     it[ReadsTable.userId] = userId
                     it[ReadsTable.poemId] = poemId
                 }
             }
 
-            defaultOkResponse(message = "read", data = statement?.resultedValues?.get(0).toBookmark())
+            defaultOkResponse(message = "marked as read", data = null)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
