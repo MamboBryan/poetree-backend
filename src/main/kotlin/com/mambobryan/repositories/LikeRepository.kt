@@ -92,7 +92,7 @@ class LikeRepository {
                 }
             }
 
-            defaultCreatedResponse(message = "poem liked", data = null)
+            defaultCreatedResponse(message = "comment liked", data = null)
 
         } catch (e: Exception) {
 
