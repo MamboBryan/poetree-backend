@@ -8,7 +8,7 @@ import java.time.ZoneId
 import java.util.*
 
 val dateFormat = SimpleDateFormat("dd-MM-yyyy").also { it.isLenient = false }
-val dateTimeFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
+val dateTimeFormat = SimpleDateFormat("dd-MM-yyyy'T'HH:mm:ss.SSSZ").also { it.isLenient = false }
 
 fun Long?.toDateLong(): String? {
     if (this == null) return null
@@ -50,7 +50,7 @@ fun Date?.toDateString(): String? {
 
 fun Date?.toDateTimeString(): String? {
     if (this == null) return null
-    return dateFormat.format(this)
+    return dateTimeFormat.format(this)
 }
 
 fun Date?.asLocalDate(): LocalDate? {

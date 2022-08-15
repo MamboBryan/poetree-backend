@@ -21,7 +21,7 @@ fun Route.poemRoutes() {
 
     route("poems") {
 
-        post("create") {
+        post {
 
             val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
@@ -30,6 +30,7 @@ fun Route.poemRoutes() {
             val request = call.receive<PoemRequest>()
 
             val response = poemsRepository.create(userId = currentUserId, request = request)
+
             call.respond(response)
 
         }
@@ -40,31 +41,27 @@ fun Route.poemRoutes() {
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
             )
 
-            val response = poemsRepository.getPoems(userId = currentUserId, page = 1)
-            call.respond(response)
-
-        }
-
-        get("search") {
-
-            val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-            )
-
-            val query = call.getQuery("query")
+            val query = call.getQuery("q")
 
             val topic = call.getQuery("topic")
 
-            val response = when {
-                query != null && topic != null -> poemsRepository.getPoems(
-                    userId = currentUserId, topic = topic.toInt(), query = query
+            val page = call.getQuery("page")?.toIntOrNull() ?: 1
+
+            if (topic.isNullOrBlank().not()) {
+                if (topic?.toIntOrNull() == null) return@get call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid topic id"
                 )
-                query != null -> poemsRepository.getPoems(userId = currentUserId, query = query)
-                topic != null -> poemsRepository.getPoems(userId = currentUserId, topic = topic.toInt())
-                else -> poemsRepository.getPoems(userId = currentUserId)
             }
 
+            val response = poemsRepository.getPoems(
+                userId = currentUserId,
+                topic = topic?.toIntOrNull(),
+                queryString = query,
+                page = page
+            )
+
             call.respond(response)
+
         }
 
         route("{id}") {

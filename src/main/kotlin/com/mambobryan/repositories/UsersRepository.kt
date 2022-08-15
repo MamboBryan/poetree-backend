@@ -163,7 +163,7 @@ class UsersRepository {
                 }
 
                 false -> {
-                    UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
+                    UsersTable.id neq userId and (UsersTable.userName.lowerCase() like "%$query%".lowercase() or (UsersTable.userEmail.lowerCase() like "%$query%".lowercase()))
                 }
             }
         }
