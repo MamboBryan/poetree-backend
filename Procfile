@@ -1,0 +1,1 @@
+web: ./build/install/socials/bin/poetree-backend
