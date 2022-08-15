@@ -3,7 +3,7 @@ package com.mambobryan.utils
 const val PAGE_SIZE = 20
 
 data class PageData<T>(
-    val next: Int?, val previous: Int?, val list: List<T>?
+    val current: Int, val next: Int?, val previous: Int?, val list: List<T>?
 )
 
 fun getLimitAndOffset(page: Int): Pair<Int, Long> {
@@ -16,11 +16,14 @@ fun getLimitAndOffset(page: Int): Pair<Int, Long> {
     }
 }
 
-fun <T> getPagedData(page: Int, list: List<T>): PageData<T> {
+fun <T> getPagedData(page: Int, result: List<T>): PageData<T> {
 
     val previousPage = if (page == 1) null else page - 1
-    val nextPage = page + 1
+    val nextPage = when (result.size < PAGE_SIZE) {
+        true -> null
+        false -> page + 1
+    }
 
-    return PageData(next = nextPage, previous = previousPage, list = list)
+    return PageData(current = page, next = nextPage, previous = previousPage, list = result)
 }
 

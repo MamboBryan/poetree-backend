@@ -7,9 +7,8 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
 
-
-val dateFormat = SimpleDateFormat("dd-MM-yyyy")
-val dateTimeFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
+val dateFormat = SimpleDateFormat("dd-MM-yyyy").also { it.isLenient = false }
+val dateTimeFormat = SimpleDateFormat("dd-MM-yyyy'T'HH:mm:ss.SSSZ").also { it.isLenient = false }
 
 fun Long?.toDateLong(): String? {
     if (this == null) return null
@@ -23,12 +22,20 @@ fun Long?.toDateAndTime(): String? {
 
 fun String?.toDateLong(): Long? {
     if (this == null) return null
-    return dateFormat.parse(this).time
+    return try {
+        dateFormat.parse(this).time
+    } catch (e: Exception) {
+        null
+    }
 }
 
 fun String?.toDate(): Date? {
     if (this.isNullOrBlank()) return null
-    return dateFormat.parse(this)
+    return try {
+        dateFormat.parse(this)
+    } catch (e: Exception) {
+        null
+    }
 }
 
 fun String?.toDateTime(): Long? {
@@ -43,7 +50,7 @@ fun Date?.toDateString(): String? {
 
 fun Date?.toDateTimeString(): String? {
     if (this == null) return null
-    return dateFormat.format(this)
+    return dateTimeFormat.format(this)
 }
 
 fun Date?.asLocalDate(): LocalDate? {
@@ -55,6 +62,7 @@ fun Date?.asLocalDateTime(): LocalDateTime? {
     if (this == null) return null
     return Instant.ofEpochMilli(this.time).atZone(ZoneId.systemDefault()).toLocalDateTime()
 }
+
 fun Date.isValidAge(): Boolean {
     val now = Calendar.getInstance()
     val then = Calendar.getInstance()

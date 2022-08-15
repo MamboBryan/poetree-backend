@@ -5,17 +5,18 @@ import com.mambobryan.data.query
 import com.mambobryan.data.requests.PoemRequest
 import com.mambobryan.data.tables.comment.CommentsTable
 import com.mambobryan.data.tables.poem.*
-import com.mambobryan.data.tables.poem.relations.CompletePoemEntity
-import com.mambobryan.data.tables.poem.relations.toPoemDto
-import com.mambobryan.data.tables.poem.toBookmark
-import com.mambobryan.data.tables.poem.toPoem
 import com.mambobryan.data.tables.topic.TopicsTable
-import com.mambobryan.data.tables.topic.toTopic
 import com.mambobryan.data.tables.user.UsersTable
-import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.utils.*
+import io.ktor.http.*
+import io.ktor.server.application.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.bitwiseAnd
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.match
 import org.jetbrains.exposed.sql.statements.InsertStatement
 import java.time.LocalDateTime
 import java.util.*
@@ -24,10 +25,10 @@ class PoemsRepository {
 
     suspend fun create(userId: UUID, request: PoemRequest): ServerResponse<out Any?> {
 
-        if (request.title.isNullOrBlank()) return defaultBadRequestResponse("Invalid Title")
-        if (request.content.isNullOrBlank()) return defaultBadRequestResponse("Invalid Content")
-        if (request.html.isNullOrBlank()) return defaultBadRequestResponse("Invalid Html content")
-        if (request.topic == null) return defaultBadRequestResponse("Invalid Topic Id")
+        if (request.title.isNullOrBlank()) return defaultBadRequestResponse("title cannot be blank or null")
+        if (request.content.isNullOrBlank()) return defaultBadRequestResponse("content cannot be blank or null")
+        if (request.html.isNullOrBlank()) return defaultBadRequestResponse("html content cannot be blank or null")
+        if (request.topic == null) return defaultBadRequestResponse("topic id is invalid")
 
         val now = LocalDateTime.now()
 
@@ -35,7 +36,11 @@ class PoemsRepository {
 
         return try {
 
+            val isInvalidTopic = query { TopicsTable.select(TopicsTable.id eq request.topic).empty() }
+            if (isInvalidTopic) return defaultBadRequestResponse("Invalid Topic Id")
+
             query {
+
                 statement = PoemsTable.insert {
                     it[PoemsTable.createdAt] = now
                     it[PoemsTable.updatedAt] = now
@@ -45,9 +50,14 @@ class PoemsRepository {
                     it[PoemsTable.userId] = userId
                     it[PoemsTable.topicId] = request.topic
                 }
+
             }
 
-            defaultOkResponse(message = "poem created", data = statement?.resultedValues?.get(0).toPoem())
+            val poemId = statement?.resultedValues?.get(0)?.get(PoemsTable.id)?.value ?: return serverErrorResponse(
+                message = "unable to return poem"
+            )
+
+            getPoem(userId = userId, poemId = poemId, fromPoemCreation = true)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -56,35 +66,49 @@ class PoemsRepository {
 
     }
 
-    suspend fun update(userId: UUID, poemId: UUID, request: PoemRequest): ServerResponse<out Any?> = query {
+    suspend fun update(userId: UUID, request: PoemRequest): ServerResponse<out Any?> {
 
-        if (request.title.isNullOrBlank() && request.content.isNullOrBlank() && request.html.isNullOrBlank() && request.topic == null) return@query defaultBadRequestResponse(
-            "Invalid title, content, html or topic"
+        val id = request.poemId.asUUID() ?: return defaultBadRequestResponse(
+            message = "Invalid poem id"
         )
 
-        val condition = Op.build { PoemsTable.id eq poemId and (PoemsTable.userId eq userId) }
+        if (request.title.isNullOrBlank() && request.content.isNullOrBlank() && request.html.isNullOrBlank() && request.topic == null) return defaultBadRequestResponse(
+            "Invalid update details, update at least one field"
+        )
 
-        PoemsTable.select(condition).singleOrNull() ?: defaultBadRequestResponse("This poem is not yours!")
+        val result = query {
 
-        return@query try {
+            val condition = Op.build { PoemsTable.id eq id and (PoemsTable.userId eq userId) }
 
-            PoemsTable.update({ condition }) {
-                it[PoemsTable.updatedAt] = LocalDateTime.now()
-                it[PoemsTable.editedAt] = LocalDateTime.now()
-                if (!request.title.isNullOrBlank()) it[PoemsTable.title] = request.title
-                if (!request.content.isNullOrBlank()) it[PoemsTable.content] = request.content
-                if (!request.html.isNullOrBlank()) it[PoemsTable.contentAsHtml] = request.html
-                if (request.topic != null) it[PoemsTable.topicId] = request.topic
+            return@query try {
+
+                if (request.topic != null) TopicsTable.select(TopicsTable.id eq request.topic).firstOrNull()
+                    ?: return@query defaultBadRequestResponse(message = "Invalid Topic Id")
+
+                PoemsTable.select(condition).singleOrNull()
+                    ?: return@query defaultBadRequestResponse(message = "This poem is not yours!")
+
+                PoemsTable.update({ condition }) {
+                    it[PoemsTable.updatedAt] = LocalDateTime.now()
+                    it[PoemsTable.editedAt] = LocalDateTime.now()
+                    if (!request.title.isNullOrBlank()) it[PoemsTable.title] = request.title
+                    if (!request.content.isNullOrBlank()) it[PoemsTable.content] = request.content
+                    if (!request.html.isNullOrBlank()) it[PoemsTable.contentAsHtml] = request.html
+                    if (request.topic != null) it[PoemsTable.topicId] = request.topic
+                }
+
+                null
+
+            } catch (e: Exception) {
+                println(e.localizedMessage)
+                serverErrorResponse(message = e.localizedMessage)
             }
 
-            val updatedPoem = PoemsTable.select { condition }.firstOrNull().toPoem()
-
-            defaultOkResponse(message = "poem updated", data = updatedPoem)
-
-        } catch (e: Exception) {
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
         }
+
+        if (result != null) return result
+
+        return getPoem(userId = userId, poemId = id)
 
     }
 
@@ -95,7 +119,7 @@ class PoemsRepository {
             val result = PoemsTable.deleteWhere { PoemsTable.id eq poemId and (PoemsTable.userId eq userId) }
 
             when (result != 0) {
-                true -> defaultOkResponse(message = "poem deleted", data = true)
+                true -> defaultOkResponse(message = "poem deleted", data = null)
                 false -> serverErrorResponse(message = "unable to delete poem")
             }
 
@@ -106,13 +130,67 @@ class PoemsRepository {
 
     }
 
-    suspend fun getPoem(userId: UUID, poemId: UUID) = query {
+    suspend fun getPoem(userId: UUID, poemId: UUID, fromPoemCreation: Boolean = false) = query {
 
         return@query try {
 
-            val poem = PoemsTable.select(PoemsTable.id eq poemId).map { it.toPoem() }.singleOrNull()
+            val readCondition = Op.build { ReadsTable.poemId eq PoemsTable.id }
+            val reads = ReadsTable.id.count()
+            val read =
+                exists(ReadsTable.select { ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId) })
 
-            defaultOkResponse(message = "success", data = poem)
+            val like = Op.build { PoemLikesTable.poemId eq PoemsTable.id }
+            val likes = PoemLikesTable.id.count()
+            val liked =
+                exists(PoemLikesTable.select { PoemLikesTable.poemId eq PoemsTable.id and (PoemLikesTable.userId eq userId) })
+
+            val bookmark = Op.build { BookmarksTable.poemId eq PoemsTable.id }
+            val bookmarks = BookmarksTable.id.count()
+            val bookmarked =
+                exists(BookmarksTable.select { BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId) })
+
+            val comment = Op.build { CommentsTable.poemId eq PoemsTable.id }
+            val comments = CommentsTable.id.count()
+            val commented =
+                exists(CommentsTable.select { CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId) })
+
+            val columns = listOf(
+                reads,
+                read,
+                bookmarks,
+                bookmarked,
+                likes,
+                liked,
+                comments,
+                commented,
+                *UsersTable.columns.toTypedArray(),
+                *TopicsTable.columns.toTypedArray(),
+                *PoemsTable.columns.toTypedArray()
+            )
+
+            val poem = PoemsTable.innerJoin(UsersTable).innerJoin(TopicsTable)
+                .join(otherTable = ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
+                .join(otherTable = BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmark })
+                .join(otherTable = PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { like })
+                .join(otherTable = CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { comment })
+                .slice(columns).select(PoemsTable.id eq poemId).groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
+                .map {
+                    it.toCompletePoemDto(
+                        read = it[read],
+                        reads = it[reads],
+                        bookmarked = it[bookmarked],
+                        bookmarks = it[bookmarks],
+                        liked = it[liked],
+                        likes = it[likes],
+                        commented = it[commented],
+                        comments = it[comments]
+                    )
+                }.singleOrNull()
+
+            when (fromPoemCreation) {
+                true -> defaultCreatedResponse(message = "poem created", data = poem)
+                false -> defaultOkResponse(message = "success", data = poem)
+            }
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -121,77 +199,113 @@ class PoemsRepository {
 
     }
 
-    suspend fun getPoems(userId: UUID, page: Int = 1) = query {
+    private fun getReadAndReads(userId: UUID): Pair<exists, Count> {
+        val reads = ReadsTable.id.count()
+        val read = exists(ReadsTable.select { ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId) })
+        return Pair(read, reads)
+    }
+
+    private fun getBookmarkData(userId: UUID): Pair<exists, Count> {
+        val bookmarks = BookmarksTable.id.count()
+        val bookmarked =
+            exists(BookmarksTable.select { BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId) })
+        return Pair(bookmarked, bookmarks)
+    }
+
+    private fun getLikesData(userId: UUID): Pair<exists, Count> {
+        val likes = PoemLikesTable.id.count()
+        val liked =
+            exists(PoemLikesTable.select { PoemLikesTable.poemId eq PoemsTable.id and (PoemLikesTable.userId eq userId) })
+        return Pair(liked, likes)
+    }
+
+    private fun getCommentsData(userId: UUID): Pair<exists, Count> {
+        val comments = CommentsTable.id.count()
+        val commented =
+            exists(CommentsTable.select { CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId) })
+        return Pair(commented, comments)
+    }
+
+    private fun getQuery(userId: UUID): FieldSet {
+
+        val readCondition = Op.build { ReadsTable.poemId eq PoemsTable.id }
+        val (read, reads) = getReadAndReads(userId)
+
+        val like = Op.build { PoemLikesTable.poemId eq PoemsTable.id }
+        val (liked, likes) = getLikesData(userId)
+
+        val bookmark = Op.build { BookmarksTable.poemId eq PoemsTable.id }
+        val (bookmarked, bookmarks) = getBookmarkData(userId)
+
+        val comment = Op.build { CommentsTable.poemId eq PoemsTable.id }
+        val (commented, comments) = getCommentsData(userId)
+
+        val columns = listOf(
+            reads,
+            read,
+            bookmarks,
+            bookmarked,
+            likes,
+            liked,
+            comments,
+            commented,
+            *UsersTable.columns.toTypedArray(),
+            *TopicsTable.columns.toTypedArray(),
+            *PoemsTable.columns.toTypedArray()
+        )
+
+        return PoemsTable.innerJoin(UsersTable).innerJoin(TopicsTable)
+            .join(otherTable = ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
+            .join(otherTable = BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmark })
+            .join(otherTable = PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { like })
+            .join(otherTable = CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { comment })
+            .slice(columns)
+
+    }
+
+    suspend fun getPoems(userId: UUID, topic: Int?, queryString: String?, page: Int = 1) = query {
 
         val (limit, offset) = getLimitAndOffset(page)
 
         return@query try {
 
-            val likes = PoemLikesTable.id.count().alias("likes")
-            val likeCondition = Op.build {
-                PoemLikesTable.poemId eq PoemsTable.id // and (PoemLikesTable.userId eq userId)
+            val query = getQuery(userId = userId)
+            val (read, reads) = getReadAndReads(userId)
+            val (liked, likes) = getLikesData(userId)
+            val (bookmarked, bookmarks) = getBookmarkData(userId)
+            val (commented, comments) = getCommentsData(userId)
+
+            val queryCondition =
+                (PoemsTable.title.lowerCase() like "%$queryString%".lowercase()) or (PoemsTable.content.lowerCase() like "%$queryString%".lowercase())
+            val topicCondition = PoemsTable.topicId eq topic
+
+            val selectCondition = when {
+                !queryString.isNullOrBlank() && topic != null -> Op.build { topicCondition and queryCondition }
+                !queryString.isNullOrBlank() -> Op.build { queryCondition }
+                topic != null -> Op.build { topicCondition }
+                else -> null
             }
 
-            val bookmarks = BookmarksTable.id.count().alias("bookmarks")
-            val bookmarkCondition = Op.build {
-                BookmarksTable.poemId eq PoemsTable.id and (BookmarksTable.userId eq userId)
+            val subQuery = when (selectCondition != null) {
+                true -> query.select(selectCondition)
+                false -> query.selectAll()
             }
 
-            val reads = ReadsTable.id.count().alias("reads")
-            val readCondition = Op.build {
-                ReadsTable.poemId eq PoemsTable.id and (ReadsTable.userId eq userId)
-            }
+            val data = subQuery.groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
+                .orderBy(PoemsTable.createdAt, SortOrder.DESC).limit(n = limit, offset = offset).map {
+                    it.toCompletePoemDto(
+                        read = it[read],
+                        reads = it[reads],
+                        bookmarked = it[bookmarked],
+                        bookmarks = it[bookmarks],
+                        liked = it[liked],
+                        likes = it[likes],
+                        commented = it[commented],
+                        comments = it[comments]
+                    )
+                }
 
-            val comments = CommentsTable.id.count().alias("comments")
-            val commentCondition = Op.build {
-                CommentsTable.poemId eq PoemsTable.id and (CommentsTable.userId eq userId)
-            }
-
-            val topicsCondition = Op.build { PoemsTable.topicId eq TopicsTable.id }
-
-            val columns = listOf(
-                *UsersTable.fields.toTypedArray(),
-                *PoemsTable.fields.toTypedArray(),
-                *TopicsTable.fields.toTypedArray(),
-//                *PoemLikesTable.fields.toTypedArray(),
-//                *BookmarksTable.fields.toTypedArray(),
-//                *ReadsTable.fields.toTypedArray(),
-//                *CommentsTable.fields.toTypedArray(),
-            )
-
-            val list = CompletePoemEntity
-                .all()
-                .limit(limit, offset)
-                .map { it.toPoemDto() }
-
-//            val poems = PoemsTable.innerJoin(UsersTable)
-//                .innerJoin(TopicsTable)
-//                .join(PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { likeCondition })
-//                .join(BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmarkCondition })
-//                .join(ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { readCondition })
-//                .join(CommentsTable, joinType = JoinType.LEFT, additionalConstraint = { commentCondition })
-//                .slice(
-//                    reads,
-//                    bookmarks,
-//                    likes,
-//                    comments,
-//                    *columns.toTypedArray()
-//                )
-//                .selectAll()
-//                .groupBy(
-//                    UsersTable.id,
-//                    PoemsTable.id,
-//                    PoemLikesTable.id,
-//                    BookmarksTable.id,
-//                    ReadsTable.id,
-//                    CommentsTable.id
-//                )
-//                .limit(limit, offset)
-//                .sortedByDescending { PoemsTable.updatedAt }.map {
-//                    it.toPoem()
-//                }
-
-            defaultOkResponse(message = "success", data = getPagedData(page = page, list = list))
+            defaultOkResponse(message = "success", data = getPagedData(page = page, result = data))
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -200,84 +314,64 @@ class PoemsRepository {
 
     }
 
-    suspend fun getPoems(userId: UUID, query: String, page: Int = 1) = query {
+    suspend fun getUserPoems(currentUserId: UUID, userId: UUID, page: Int = 1) = query {
 
         val (limit, offset) = getLimitAndOffset(page)
 
         return@query try {
 
-            val condition =
-                Op.build { (PoemsTable.title.lowerCase() like "%$query%".lowercase() or (PoemsTable.content.lowerCase() like "%$query%".lowercase())) }
+            val query = getQuery(userId = currentUserId)
+            val (read, reads) = getReadAndReads(currentUserId)
+            val (liked, likes) = getLikesData(currentUserId)
+            val (bookmarked, bookmarks) = getBookmarkData(currentUserId)
+            val (commented, comments) = getCommentsData(currentUserId)
 
-            val poems = PoemsTable.select { condition }
-                .limit(n = limit, offset = offset)
-                .sortedByDescending { PoemsTable.updatedAt }
-                .map { it.toPoem() }
+            val selectCondition = Op.build { PoemsTable.userId eq userId }
 
-            defaultOkResponse(message = "success", data = poems)
+            val data = query.select(selectCondition).groupBy(PoemsTable.id, UsersTable.id, TopicsTable.id)
+                .orderBy(PoemsTable.createdAt, SortOrder.DESC).limit(n = limit, offset = offset).map {
+                    it.toCompletePoemDto(
+                        read = it[read],
+                        reads = it[reads],
+                        bookmarked = it[bookmarked],
+                        bookmarks = it[bookmarks],
+                        liked = it[liked],
+                        likes = it[likes],
+                        commented = it[commented],
+                        comments = it[comments]
+                    )
+                }
 
-        } catch (e: Exception) {
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
-        }
-
-    }
-
-    suspend fun getPoems(userId: UUID, topic: Int, page: Int = 1) = query {
-
-        return@query try {
-
-            val condition = Op.build { PoemsTable.topicId eq topic }
-
-            val poems = PoemsTable.select { condition }.sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
-
-            defaultOkResponse(message = "success", data = poems)
+            defaultOkResponse(message = "success", data = getPagedData(page = page, result = data))
 
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
-        }
-
-    }
-
-    suspend fun getPoems(userId: UUID, topic: Int, query: String) = query {
-
-        return@query try {
-
-            val condition =
-                Op.build { PoemsTable.topicId eq topic and (PoemsTable.title like "%$query%" or (PoemsTable.content like "%$query%")) }
-
-            val poems = PoemsTable.select { condition }.sortedByDescending { PoemsTable.updatedAt }.map { it.toPoem() }
-
-            defaultOkResponse(message = "success", data = poems)
-
-        } catch (e: Exception) {
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
+            serverErrorResponse(message = e.message.toString())
         }
 
     }
 
     suspend fun markAsRead(userId: UUID, poemId: UUID): ServerResponse<out Any?> {
 
-        var statement: InsertStatement<Number>? = null
-
         return try {
 
-            val exists = ReadsTable.select { ReadsTable.userId eq userId and (ReadsTable.poemId eq poemId) }
-                .firstOrNull() != null
+            query { PoemsTable.select(PoemsTable.id eq poemId).firstOrNull() }
+                ?: return defaultNotFoundResponse(message = "poem not found")
 
-            if (exists) return defaultOkResponse(message = "poem already read", data = null)
+            val read = query {
+                ReadsTable.select { ReadsTable.userId eq userId and (ReadsTable.poemId eq poemId) }.firstOrNull()
+            }
+            if (read != null) return defaultOkResponse(message = "poem already read. \n no pun intended", data = null)
 
             query {
-                statement = ReadsTable.insert {
+                ReadsTable.insert {
                     it[ReadsTable.createdAt] = LocalDateTime.now()
                     it[ReadsTable.userId] = userId
                     it[ReadsTable.poemId] = poemId
                 }
             }
 
-            defaultOkResponse(message = "read", data = statement?.resultedValues?.get(0).toBookmark())
+            defaultOkResponse(message = "marked as read", data = null)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
@@ -285,6 +379,5 @@ class PoemsRepository {
         }
 
     }
-
 
 }
