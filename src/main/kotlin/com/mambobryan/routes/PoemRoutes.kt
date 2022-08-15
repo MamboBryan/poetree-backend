@@ -7,9 +7,11 @@ import com.mambobryan.repositories.CommentsRepository
 import com.mambobryan.repositories.LikeRepository
 import com.mambobryan.repositories.PoemsRepository
 import com.mambobryan.utils.*
+import com.mambobryan.utils.respond
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.poemRoutes() {
@@ -31,6 +33,36 @@ fun Route.poemRoutes() {
             val request = call.receive<PoemRequest>()
 
             val response = poemsRepository.create(userId = currentUserId, request = request)
+
+            call.respond(response)
+
+        }
+
+        // get poem list, enables searching by string (q), topic and page
+        get {
+
+            val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
+                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
+            )
+
+            val query = call.getQuery("q")
+
+            val topic = call.getQuery("topic")
+
+            val page = call.getQuery("page")?.toIntOrNull() ?: 1
+
+            if (topic.isNullOrBlank().not()) {
+                if (topic?.toIntOrNull() == null) return@get call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid topic id"
+                )
+            }
+
+            val response = poemsRepository.getPoems(
+                userId = currentUserId,
+                topic = topic?.toIntOrNull(),
+                queryString = query,
+                page = page
+            )
 
             call.respond(response)
 
@@ -164,35 +196,23 @@ fun Route.poemRoutes() {
                 call.respond(response)
             }
 
-        }
-
-        // get poem list, enables searching by string (q), topic and page
-        get {
-
-            val currentUserId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-            )
-
-            val query = call.getQuery("q")
-
-            val topic = call.getQuery("topic")
-
-            val page = call.getQuery("page")?.toIntOrNull() ?: 1
-
-            if (topic.isNullOrBlank().not()) {
-                if (topic?.toIntOrNull() == null) return@get call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Invalid topic id"
+            // poem comments
+            post("comments") {
+                val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
                 )
+
+                val page = call.getQuery("page")?.toIntOrNull() ?: 1
+
+                val request = call.receive<CommentRequest>()
+
+                val poemId = request.poemId.asUUID() ?: return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, message = "Invalid poem id"
+                )
+
+                val response = commentRepository.getComments(userId = currentUserId, poemId = poemId, page = page)
+                call.respond(response)
             }
-
-            val response = poemsRepository.getPoems(
-                userId = currentUserId,
-                topic = topic?.toIntOrNull(),
-                queryString = query,
-                page = page
-            )
-
-            call.respond(response)
 
         }
 
@@ -242,8 +262,8 @@ fun Route.poemRoutes() {
                             status = HttpStatusCode.BadRequest, message = "invalid comment Id"
                         )
 
-                        val response = commentRepository.get(userId = currentUserId, commentId = commentId)
-                        call.respond(response)
+//                        val response = commentRepository.get(userId = currentUserId, commentId = commentId)
+                        call.respond("This is it")
 
                     }
 
@@ -259,8 +279,8 @@ fun Route.poemRoutes() {
                         val request = call.receive<CommentRequest>()
 
                         val response =
-                            commentRepository.update(userId = currentUserId, commentId = commentId, request = request)
-                        call.respond(response)
+//                            commentRepository.update(userId = currentUserId, commentId = commentId, request = request)
+                            call.respond("THis is is")
                     }
 
                     delete {

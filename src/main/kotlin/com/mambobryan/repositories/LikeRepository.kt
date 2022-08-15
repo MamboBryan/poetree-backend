@@ -3,11 +3,9 @@ package com.mambobryan.repositories
 import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
 import com.mambobryan.data.tables.comment.CommentLikesTable
-import com.mambobryan.data.tables.comment.toCommentLike
+import com.mambobryan.data.tables.comment.CommentsTable
 import com.mambobryan.data.tables.poem.PoemLikesTable
 import com.mambobryan.data.tables.poem.PoemsTable
-import com.mambobryan.data.tables.poem.ReadsTable
-import com.mambobryan.data.tables.poem.toPoemLike
 import com.mambobryan.utils.defaultCreatedResponse
 import com.mambobryan.utils.defaultNotFoundResponse
 import com.mambobryan.utils.defaultOkResponse
@@ -17,7 +15,6 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.statements.InsertStatement
 import java.time.LocalDateTime
 import java.util.*
 
@@ -44,7 +41,7 @@ class LikeRepository {
                 }
             }
 
-           defaultCreatedResponse(message = "poem liked", data = null)
+            defaultCreatedResponse(message = "poem liked", data = null)
 
         } catch (e: Exception) {
 
@@ -76,33 +73,26 @@ class LikeRepository {
 
     suspend fun likeComment(userId: UUID, commentId: UUID): ServerResponse<out Any?> {
 
-        var statement: InsertStatement<Number>? = null
-        var exists = false
-
         return try {
 
+            query { CommentsTable.select(CommentsTable.id eq commentId).firstOrNull() }
+                ?: return defaultNotFoundResponse(message = "comment not found")
+
+            val liked = query {
+                CommentLikesTable.select { CommentLikesTable.userId eq userId and (CommentLikesTable.commentId eq commentId) }
+                    .firstOrNull()
+            }
+            if (liked != null) return defaultOkResponse(message = "comment already liked", data = null)
+
             query {
-
-                exists =
-                    CommentLikesTable.select { CommentLikesTable.userId eq userId and (CommentLikesTable.commentId eq commentId) }
-                        .firstOrNull() != null
-
-                if (exists) return@query
-
-                statement = CommentLikesTable.insert {
+                CommentLikesTable.insert {
                     it[CommentLikesTable.createdAt] = LocalDateTime.now()
                     it[CommentLikesTable.userId] = userId
                     it[CommentLikesTable.commentId] = commentId
                 }
             }
 
-            when (exists) {
-                true -> defaultOkResponse(message = "Comment already liked", data = null)
-                false -> defaultOkResponse(
-                    message = "comment liked", data = statement?.resultedValues?.get(0).toCommentLike()
-                )
-
-            }
+            defaultCreatedResponse(message = "poem liked", data = null)
 
         } catch (e: Exception) {
 
@@ -113,11 +103,16 @@ class LikeRepository {
 
     }
 
-    suspend fun unlikeComment(userId: UUID, poemId: UUID) = query {
+    suspend fun unlikeComment(userId: UUID, commentId: UUID) = query {
         try {
 
-            val result =
-                CommentLikesTable.deleteWhere { CommentLikesTable.userId eq userId and (CommentLikesTable.commentId eq poemId) }
+            CommentsTable.select(CommentsTable.id eq commentId).firstOrNull()
+                ?: return@query defaultNotFoundResponse(message = "comment not found")
+
+            val result = CommentLikesTable.deleteWhere {
+                CommentLikesTable.userId eq userId and (CommentLikesTable.commentId eq commentId)
+            }
+
             defaultOkResponse(message = "comment unliked", data = result != 0)
 
         } catch (e: Exception) {

@@ -52,80 +52,89 @@ data class Comment(
     val poemId: UUID
 )
 
-data class CommentComplete(
-    val id: UUID,
-    val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime?,
-    val content: String,
-    val user: UserEntity,
-    val poem: PoemEntity
-)
-
-data class CommentDTO(
+data class CommentDto(
     val id: String,
     val createdAt: String,
     val updatedAt: String?,
     val content: String,
+    val userId: String,
+    val poemId: String,
+)
+
+data class CommentCompleteDto(
+    val id: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val content: String,
+    val poemId: String,
     val user: UserMinimalDTO?,
-)
-
-data class CommentWithPoemDTO(
-    val id: String,
-    val createdAt: String,
-    val updatedAt: String?,
-    val content: String,
-    val user: UserDto,
-    val poem: PoemEntity,
+    val liked: Boolean,
+    val likes: Long
 )
 
 /**
  * MAPPERS/CONVERTERS
  */
 
-internal fun CommentEntity?.toCompleteComment(): CommentComplete? {
+internal fun ResultRow?.toComment(): Comment? {
     if (this == null) return null
     return try {
-        CommentComplete(
-            id = this.id.value,
-            createdAt = this.createdAt,
-            updatedAt = this.updatedAt,
-            content = this.content,
-            user = this.user,
-            poem = this.poem,
+        Comment(
+            id = this[CommentsTable.id].value,
+            createdAt = this[CommentsTable.createdAt],
+            updatedAt = this[CommentsTable.updatedAt],
+            content = this[CommentsTable.content],
+            userId = this[CommentsTable.userId].value,
+            poemId = this[CommentsTable.poemId].value
+
         )
     } catch (e: Exception) {
-        val message = "CommentEntity to Complete Comment -> ${e.localizedMessage}"
-        println(message)
+        println("Error converting ResultRow to Comment -> ${e.localizedMessage}")
         null
     }
+
 }
 
-internal fun CommentComplete?.toCommentDTO(): CommentDTO?{
+internal fun ResultRow?.toCompleteCommentDto(
+    liked: Boolean,
+    likes: Long
+): CommentCompleteDto? {
     if (this == null) return null
     return try {
-        CommentDTO(
+
+        val user = this.toUser().toMinimalUserDto()
+
+        CommentCompleteDto(
+            id = this[CommentsTable.id].value.toString(),
+            createdAt = this[CommentsTable.createdAt].toDate().toDateTimeString(),
+            updatedAt = this[CommentsTable.updatedAt].toDate().toDateTimeString(),
+            content = this[CommentsTable.content],
+            poemId = this[CommentsTable.poemId].value.toString(),
+            user = user,
+            liked = liked,
+            likes = likes
+
+        )
+    } catch (e: Exception) {
+        println("Error converting ResultRow to Comment -> ${e.localizedMessage}")
+        null
+    }
+
+}
+
+internal fun Comment?.toCommentDto(): CommentDto? {
+    if (this == null) return null
+    return try {
+        CommentDto(
             id = this.id.toString(),
             createdAt = this.createdAt.toDate().toDateTimeString()!!,
             updatedAt = this.updatedAt.toDate().toDateTimeString(),
-            content = this.content,
-            user = this.user.toUser().toMinimalUserDto()
+            userId = this.userId.toString(),
+            poemId = this.poemId.toString(),
+            content = this.content
         )
-    } catch (e: Exception){
-        val message = "CompleteComment to  CommentDTO -> ${e.localizedMessage}"
-        println(message)
+    } catch (e: Exception) {
+        println("Error converting Comment to CommentDto -> ${e.localizedMessage}")
         null
     }
-}
-
-internal fun ResultRow?.toComment(): Comment? {
-    if (this == null) return null
-    return Comment(
-        id = this[CommentsTable.id].value,
-        createdAt = this[CommentsTable.createdAt],
-        updatedAt = this[CommentsTable.updatedAt],
-        content = this[CommentsTable.content],
-        userId = this[CommentsTable.userId].value,
-        poemId = this[CommentsTable.poemId].value
-
-    )
 }

@@ -68,9 +68,7 @@ class PoemsRepository {
 
     suspend fun update(userId: UUID, request: PoemRequest): ServerResponse<out Any?> {
 
-        val id = request.poemId
-
-        if (id.isNullOrBlank() || id.asUUID() == null) return defaultBadRequestResponse(
+        val id = request.poemId.asUUID() ?: return defaultBadRequestResponse(
             message = "Invalid poem id"
         )
 
@@ -80,7 +78,7 @@ class PoemsRepository {
 
         val result = query {
 
-            val condition = Op.build { PoemsTable.id eq id.asUUID() and (PoemsTable.userId eq userId) }
+            val condition = Op.build { PoemsTable.id eq id and (PoemsTable.userId eq userId) }
 
             return@query try {
 
@@ -110,7 +108,7 @@ class PoemsRepository {
 
         if (result != null) return result
 
-        return getPoem(userId = userId, poemId = id.asUUID()!!)
+        return getPoem(userId = userId, poemId = id)
 
     }
 
