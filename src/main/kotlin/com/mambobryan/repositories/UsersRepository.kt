@@ -4,7 +4,6 @@ import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
 import com.mambobryan.data.tables.poem.BookmarksTable
 import com.mambobryan.data.tables.poem.PoemLikesTable
-import com.mambobryan.data.tables.poem.PoemsTable
 import com.mambobryan.data.tables.poem.ReadsTable
 import com.mambobryan.data.tables.user.*
 import com.mambobryan.data.tables.user.toUser
@@ -13,34 +12,30 @@ import com.mambobryan.utils.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.UUID
 
 class UsersRepository {
 
-    suspend fun create(email: String, hash: String): ServerResponse<out Any?> {
-        return try {
+    suspend fun create(email: String, hash: String): ServerResponse<out Any?> = safeTransaction(
+        error = "invalid user email or password"
+    ) {
 
-            var statement: InsertStatement<Number>? = null
+        var statement: InsertStatement<Number>? = null
 
-            query {
-                statement = UsersTable.insert {
-                    it[UsersTable.userCreatedAt] = LocalDateTime.now()
-                    it[UsersTable.userUpdatedAt] = LocalDateTime.now()
-                    it[UsersTable.userEmail] = email
-                    it[UsersTable.userHash] = hash
-                }
+        query {
+            statement = UsersTable.insert {
+                it[UsersTable.userCreatedAt] = LocalDateTime.now()
+                it[UsersTable.userUpdatedAt] = LocalDateTime.now()
+                it[UsersTable.userEmail] = email
+                it[UsersTable.userHash] = hash
             }
-
-            val user = statement?.resultedValues?.get(0).toUser()
-
-            defaultCreatedResponse(message = "signed up successfully", data = user)
-
-        } catch (e: Exception) {
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
         }
+
+        val userId = statement?.resultedValues?.get(0)?.get(UsersTable.id)?.value
+            ?: return@safeTransaction serverErrorResponse(message = "unable to return user details")
+
+        getUserDetails(userId = userId)
 
     }
 
@@ -175,7 +170,7 @@ class UsersRepository {
                 .toUserList()
                 .map { it.toMinimalUserDto() }
 
-            val data = getPagedData(page= page, result = users)
+            val data = getPagedData(page = page, result = users)
 
             defaultOkResponse(message = "users got successfully", data = data)
 

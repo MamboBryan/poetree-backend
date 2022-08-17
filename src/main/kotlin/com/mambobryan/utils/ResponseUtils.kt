@@ -19,6 +19,6 @@ fun defaultNotFoundResponse(message: String = "Bad Request") = ServerResponse(
     status = HttpStatusCode.NotFound, message = message, data = Any() ?: null
 )
 
-fun serverErrorResponse(message: String = "error") = ServerResponse(
-    status = HttpStatusCode.InternalServerError, message = message, data = null
+fun serverErrorResponse(message: String = "error", data: Any? = null) = ServerResponse(
+    status = HttpStatusCode.InternalServerError, message = message, data = data
 )
