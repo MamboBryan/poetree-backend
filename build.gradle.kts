@@ -1,3 +1,5 @@
+import org.h2.util.SortedProperties.loadProperties
+
 val ktor_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
@@ -5,15 +7,34 @@ val logback_version: String by project
 plugins {
     application
     kotlin("jvm") version "1.7.10"
+    id("com.jetbrains.exposed.gradle.plugin") version "0.2.1"
+    id("org.flywaydb.flyway") version "5.2.4"
 }
 
-group = "com.mambobryan"
-version = "0.0.1"
+group = "com.mambo.poetree"
+version = "0.0.5"
+
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
+}
+
+exposedCodeGeneratorConfig {
+    configFilename = "exposed.yml"
+    user = System.getenv("JDBC_USER")
+    password = System.getenv("JDBC_PASSWORD")
+    databaseName = System.getenv("JDBC_DATABASE")
+    databaseDriver = System.getenv("JDBC_DRIVER")
+}
+
+flyway {
+    url = System.getenv("JDBC_DATABASE_URL")
+    user = System.getenv("JDBC_USER")
+    password = System.getenv("JDBC_PASSWORD")
+    baselineOnMigrate = true
+    locations = Array(1) { "filesystem:src/main/resources/database/migration" }
 }
 
 repositories {
@@ -47,6 +68,23 @@ dependencies {
 
     // hikari
     implementation("com.zaxxer:HikariCP:5.0.1")
+
+    // flyaway
+    implementation("org.flywaydb:flyway-core:9.0.4") {
+        because("it is used for database migration")
+    }
+
+    // logging
+    implementation("io.github.aakira:napier:2.6.1")
+
+}
+
+sourceSets.main {
+    java.srcDirs("build/tables")
+}
+
+tasks.generateExposedCode {
+    dependsOn("clean")
 }
 
 tasks {
