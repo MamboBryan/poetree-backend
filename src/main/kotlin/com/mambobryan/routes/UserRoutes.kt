@@ -27,29 +27,17 @@ fun Route.userRoutes(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
             )
 
-            val response = repository.getUsers(userId = userId)
+            val name = call.getQuery(queryName = QueryUtils.NAME) ?: ""
+
+            val page = call.getQuery(QueryUtils.PAGE)?.toInt() ?: 1
+
+            val response = repository.getUsers(userId = userId, query = name, page = page)
 
             return@get call.respond(response)
 
         }
 
-        get("search") {
-
-            val userId = call.getCurrentUserId() ?: return@get call.defaultResponse(
-                status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
-            )
-
-            val query = call.getQuery(queryName = "query") ?: return@get call.defaultResponse(
-                status = HttpStatusCode.BadRequest, message = "Bad Request",
-            )
-
-            val response = repository.searchUsers(userId = userId, query = query)
-
-            return@get call.respond(response)
-
-        }
-
-        post("get") {
+        post {
 
             val currentUserId = call.getCurrentUserId() ?: return@post call.defaultResponse(
                 status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
@@ -67,26 +55,23 @@ fun Route.userRoutes(
 
             if (currentUserId == userId) return@post call.redirectInternally("/users/me")
 
-            val user = repository.getUser(userId = userId) ?: return@post call.defaultResponse(
-                status = HttpStatusCode.NotFound, message = "User Not Found",
-            )
+            val response = repository.getUserDetails(userId = userId)
 
-            return@post call.respond(user)
+            return@post call.respond(response)
 
         }
 
         route("me") {
 
             get {
+
                 val userId = call.getCurrentUserId() ?: return@get call.defaultResponse(
                     status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
                 )
 
-                val user = repository.getUser(userId = userId) ?: return@get call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "I don't know you!",
-                )
+                val response = repository.getUserDetails(userId = userId)
 
-                call.successWithData(status = HttpStatusCode.OK, message = "success", data = user)
+                call.respond(response)
 
             }
 
@@ -114,20 +99,20 @@ fun Route.userRoutes(
                     status = HttpStatusCode.BadRequest, "Invalid gender"
                 )
 
-                val user = repository.update(
+                if ((request.bio != null) && (request.bio.length > 125)) return@post call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
+                )
+
+                val response = repository.update(
                     id = userId,
                     email = request.email,
                     username = request.username,
                     bio = request.bio,
                     dateOfBirth = request.dateOfBirth,
                     gender = request.gender
-                ) ?: return@post call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "User Not Found",
                 )
 
-                call.successWithData(
-                    status = HttpStatusCode.Created, message = "User setup successfully", data = user
-                )
+                call.respond(response)
 
             }
 
@@ -140,7 +125,7 @@ fun Route.userRoutes(
                 val request = call.receive<UserUpdateRequest>()
 
                 if (request.username.isNullOrBlank() && request.bio.isNullOrBlank() && request.email.isNullOrBlank() && request.dateOfBirth.isNullOrBlank() && request.imageUrl.isNullOrBlank() && request.token.isNullOrBlank() && (request.gender == null)) return@put call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, "Enter all field to continue"
+                    status = HttpStatusCode.BadRequest, "All fields cannot be blank"
                 )
 
                 if (request.email != null && !request.email.isValidEmail()) return@put call.defaultResponse(
@@ -162,7 +147,17 @@ fun Route.userRoutes(
                     )
                 }
 
-                val user = repository.update(
+                if (request.imageUrl.isNullOrBlank().not()) {
+                    if (request.imageUrl.isValidUrl().not()) return@put call.defaultResponse(
+                        status = HttpStatusCode.BadRequest, "Invalid image url."
+                    )
+                }
+
+                if ((request.bio != null) && (request.bio.length > 125)) return@put call.defaultResponse(
+                    status = HttpStatusCode.BadRequest, "Bio should not be null or above 125 characters"
+                )
+
+                val response = repository.update(
                     id = userId,
                     email = request.email,
                     username = request.username,
@@ -171,18 +166,12 @@ fun Route.userRoutes(
                     gender = request.gender,
                     imageUrl = request.imageUrl,
                     token = request.token
-                ) ?: return@put call.defaultResponse(
-                    status = HttpStatusCode.NotFound, message = "User Not Found",
                 )
 
-                call.successWithData(
-                    status = HttpStatusCode.Created, message = "User updated successfully", data = user
-                )
+                call.respond(response)
             }
 
             put("update-password") {
-
-                val hashFunction: (String) -> String = { pass: String -> hash(password = pass) }
 
                 val userId = call.getCurrentUserId() ?: return@put call.defaultResponse(
                     status = HttpStatusCode.Unauthorized, message = "Authentication Failed"
@@ -195,36 +184,41 @@ fun Route.userRoutes(
                 )
 
                 if (request.oldPassword.equals(request.newPassword)) return@put call.defaultResponse(
-                    status = HttpStatusCode.Conflict, message = "New Password cannot be same as old password"
+                    status = HttpStatusCode.BadRequest, message = "New Password cannot be same as old password"
                 )
 
                 return@put try {
 
-                    val response = repository.getUser(userId = userId)
+                    val response = repository.getUser(userId = userId, formatToDto = false)
 
                     val user = when (response.status.isSuccess()) {
                         true -> response.data as User
                         else -> return@put call.respond(response)
                     }
 
-                    val hash = hashFunction(request.oldPassword!!)
+                    val hash = hash(request.oldPassword!!)
 
-                    when (user.hash == hash) {
-                        true -> {
-                            val token = generateToken(issuer = issuer, audience = audience, user = user)
+                    if (user.hash != hash) return@put call.defaultResponse(
+                        status = HttpStatusCode.Unauthorized, message = "Invalid Credentials"
+                    )
 
-                            val data = mapOf(
-                                "token" to token, "user" to user
-                            )
+                    val newHash = hash(request.newPassword!!)
 
-                            call.successWithData(
-                                status = HttpStatusCode.OK, message = "Password updated successfully", data = data
-                            )
-                        }
-                        false -> call.defaultResponse(
-                            status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
-                        )
-                    }
+                    val updateResponse = repository.updatePassword(userId, newHash)
+
+                    if (updateResponse.status.isSuccess().not()) return@put call.respond(updateResponse)
+
+                    /**
+                     * TODO
+                     * 1. Invalidate user token
+                     */
+                    val token = generateToken(issuer = issuer, audience = audience, user = user)
+
+                    val data = mapOf("token" to token)
+
+                    call.successWithData(
+                        status = HttpStatusCode.OK, message = "Password updated successfully", data = data
+                    )
 
                 } catch (e: Exception) {
                     call.defaultResponse(
@@ -237,10 +231,15 @@ fun Route.userRoutes(
             delete("delete") {
 
                 val id = call.getCurrentUserId() ?: return@delete call.defaultResponse(
-                    status = HttpStatusCode.BadRequest, message = "Missing Id",
+                    status = HttpStatusCode.Unauthorized, message = "Authentication Failed",
                 )
 
                 val response = repository.delete(id)
+
+                /**
+                 * TODO
+                 * 1. Invalidate user token
+                 */
 
                 return@delete call.respond(response)
 

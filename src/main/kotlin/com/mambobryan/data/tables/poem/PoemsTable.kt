@@ -1,7 +1,15 @@
 package com.mambobryan.data.tables.poem
 
-import com.mambobryan.data.tables.topic.TopicsTable
-import com.mambobryan.data.tables.user.UsersTable
+import com.mambobryan.data.tables.topic.*
+import com.mambobryan.data.tables.topic.toTopic
+import com.mambobryan.data.tables.user.*
+import com.mambobryan.data.tables.user.toUser
+import com.mambobryan.utils.asString
+import com.mambobryan.utils.toDate
+import com.mambobryan.utils.toDateTimeString
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ResultRow
@@ -24,6 +32,20 @@ object PoemsTable : UUIDTable() {
 
 }
 
+class PoemEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+
+    companion object : UUIDEntityClass<PoemEntity>(PoemsTable)
+
+    var createdAt by PoemsTable.createdAt
+    var updatedAt by PoemsTable.updatedAt
+    var editedAt by PoemsTable.editedAt
+
+    var title by PoemsTable.title
+    var content by PoemsTable.content
+    var contentAsHtml by PoemsTable.contentAsHtml
+
+}
+
 data class Poem(
     val id: UUID,
     val createdAt: LocalDateTime,
@@ -36,8 +58,28 @@ data class Poem(
     val topicId: Int
 )
 
-internal fun ResultRow?.toPoem(): Poem?{
-    if(this == null) return null
+data class CompletePoemDto(
+    val id: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val editedAt: String?,
+    val title: String?,
+    val content: String?,
+    val html: String?,
+    val user: UserDto?,
+    val topic: TopicDto?,
+    val reads: Long,
+    val read: Boolean = false,
+    val bookmarks: Long,
+    val bookmarked: Boolean = false,
+    val likes: Long,
+    val liked: Boolean = false,
+    val comments: Long,
+    val commented: Boolean = false
+)
+
+internal fun ResultRow?.toPoem(): Poem? {
+    if (this == null) return null
     return Poem(
         id = this[PoemsTable.id].value,
         createdAt = this[PoemsTable.createdAt],
@@ -49,4 +91,48 @@ internal fun ResultRow?.toPoem(): Poem?{
         userId = this[PoemsTable.userId].value,
         topicId = this[PoemsTable.topicId].value,
     )
+}
+
+internal fun ResultRow?.toCompletePoemDto(
+    reads: Long,
+    read: Boolean = false,
+    bookmarks: Long,
+    bookmarked: Boolean = false,
+    likes: Long,
+    liked: Boolean = false,
+    comments: Long,
+    commented: Boolean = false
+): CompletePoemDto? {
+    if (this == null) return null
+
+    return try {
+
+        val user = this.toUser().toUserDto()
+        val topic = this.toTopic().toTopicDto()
+
+        CompletePoemDto(
+            id = this[PoemsTable.id].value.toString(),
+            createdAt = this[PoemsTable.createdAt].toDate().toDateTimeString(),
+            updatedAt = this[PoemsTable.updatedAt].toDate().toDateTimeString(),
+            editedAt = this[PoemsTable.editedAt].toDate().toDateTimeString(),
+            title = this[PoemsTable.title],
+            content = this[PoemsTable.content],
+            html = this[PoemsTable.contentAsHtml],
+            user = user,
+            topic = topic,
+            reads = reads,
+            read = read,
+            bookmarks = bookmarks,
+            bookmarked = bookmarked,
+            likes = likes,
+            liked = liked,
+            comments = comments,
+            commented = commented
+        )
+
+    } catch (e: Exception) {
+        println("Error changing from result row to Complete Poem -> ${e.localizedMessage}")
+        null
+    }
+
 }

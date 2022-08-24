@@ -2,9 +2,7 @@ package com.mambobryan.routes
 
 import com.mambobryan.data.requests.TopicRequest
 import com.mambobryan.repositories.TopicsRepository
-import com.mambobryan.utils.defaultResponse
-import com.mambobryan.utils.getUrlParameter
-import com.mambobryan.utils.respond
+import com.mambobryan.utils.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -16,7 +14,7 @@ fun Route.topicRoutes() {
 
     route("topics") {
 
-        post("create") {
+        post {
 
             val request = call.receive<TopicRequest>()
 
@@ -27,7 +25,9 @@ fun Route.topicRoutes() {
 
         get {
 
-            val response = repository.getTopics()
+            val page = call.getQuery(QueryUtils.PAGE)?.toInt() ?: 1
+
+            val response = repository.getTopics(page = page)
             call.respond(response)
 
         }
@@ -40,8 +40,8 @@ fun Route.topicRoutes() {
                     status = HttpStatusCode.BadRequest, message = "Invalid Id"
                 )
 
-                val topic = repository.get(topicId = id.toInt())
-                call.respond(topic)
+                val response = repository.get(topicId = id.toInt())
+                call.respond(response)
 
             }
 

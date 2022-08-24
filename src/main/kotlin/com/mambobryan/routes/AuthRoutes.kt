@@ -3,10 +3,12 @@ package com.mambobryan.routes
 import com.mambobryan.data.requests.AuthRequest
 import com.mambobryan.data.requests.ResetRequest
 import com.mambobryan.data.tables.user.User
+import com.mambobryan.data.tables.user.toUserDto
 import com.mambobryan.plugins.generateToken
 import com.mambobryan.plugins.hash
 import com.mambobryan.repositories.UsersRepository
 import com.mambobryan.utils.defaultResponse
+import com.mambobryan.utils.isValidPassword
 import com.mambobryan.utils.respond
 import com.mambobryan.utils.successWithData
 import io.ktor.http.*
@@ -35,10 +37,9 @@ fun Route.authRoutes(
 
                 val response = repository.getUserByEmail(request.email!!)
 
-                val user = when (response.status.isSuccess()) {
-                    true -> response.data as User
-                    else -> return@post call.respond(response)
-                }
+                if (response.status.isSuccess().not()) return@post call.respond(response)
+
+                val user = response.data as User
 
                 val hash = hashFunction(request.password!!)
 
@@ -47,21 +48,22 @@ fun Route.authRoutes(
                         val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                         val data = mapOf(
-                            "token" to token, "user" to user
+                            "token" to token, "user" to user.toUserDto()
                         )
 
                         call.successWithData(
                             status = HttpStatusCode.OK, message = "Signed Up successfully", data = data
                         )
                     }
+
                     false -> call.defaultResponse(
-                        status = HttpStatusCode.NotAcceptable, message = "Invalid Credentials"
+                        status = HttpStatusCode.Unauthorized, message = "Invalid Credentials"
                     )
                 }
 
             } catch (e: Exception) {
                 call.defaultResponse(
-                    status = HttpStatusCode.NotAcceptable, message = "Failed Signing in"
+                    status = HttpStatusCode.Unauthorized, message = "Failed Signing in"
                 )
             }
 
@@ -75,21 +77,25 @@ fun Route.authRoutes(
                 status = HttpStatusCode.BadRequest, message = "Email or Password cannot be blank"
             )
 
-            try {
+            if (request.password.isValidPassword().not()) return@post call.defaultResponse(
+                status = HttpStatusCode.BadRequest,
+                message = "Password must be a minimum of 8 characters containing Uppercase, Lowercase, Number and Special Character"
+            )
+
+            return@post try {
 
                 val hash = hashFunction(request.password!!)
 
                 val response = repository.create(email = request.email!!, hash = hash)
 
-                val user = when (response.status.isSuccess()) {
-                    true -> response.data as User
-                    else -> return@post call.respond(response)
-                }
+                if (response.status.isSuccess().not()) return@post call.respond(response)
+
+                val user = response.data as User
 
                 val token = generateToken(issuer = issuer, audience = audience, user = user)
 
                 val data = mapOf(
-                    "token" to token, "user" to user
+                    "token" to token, "user" to user.toUserDto()
                 )
 
                 call.successWithData(
@@ -97,8 +103,9 @@ fun Route.authRoutes(
                 )
 
             } catch (e: Exception) {
-                return@post call.defaultResponse(
-                    status = HttpStatusCode.NotAcceptable, message = "Failed signing up"
+
+                call.defaultResponse(
+                    status = HttpStatusCode.Unauthorized, message = "Failed signing up"
                 )
             }
 
@@ -111,6 +118,16 @@ fun Route.authRoutes(
             if (request.email.isNullOrBlank()) return@post call.defaultResponse(
                 status = HttpStatusCode.BadRequest, message = "Email cannot be blank"
             )
+
+            /**
+             * TODO
+             *  1. verify user with email exists
+             *  1.a if user with email doesn't exist return error
+             *  1.b if user with email exists return true
+             *  2. generate random 8 strong digit password
+             *  3. send password to user email
+             *  4. respond with either success or failure
+             */
 
             return@post call.defaultResponse(status = HttpStatusCode.OK, message = "Rest Link Sent")
 

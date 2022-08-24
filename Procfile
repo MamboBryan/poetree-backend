@@ -1,0 +1,1 @@
+web: ./build/install/poetree-backend/bin/poetree-backend

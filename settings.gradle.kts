@@ -1,1 +1,1 @@
-rootProject.name = "com.mambobryan.poetree.backend"
+rootProject.name = "poetree-backend"

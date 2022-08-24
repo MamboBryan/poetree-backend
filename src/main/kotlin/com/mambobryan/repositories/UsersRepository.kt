@@ -2,17 +2,18 @@ package com.mambobryan.repositories
 
 import com.mambobryan.data.models.ServerResponse
 import com.mambobryan.data.query
-import com.mambobryan.data.tables.user.User
-import com.mambobryan.data.tables.user.UsersTable
+import com.mambobryan.data.tables.poem.BookmarksTable
+import com.mambobryan.data.tables.poem.PoemLikesTable
+import com.mambobryan.data.tables.poem.PoemsTable
+import com.mambobryan.data.tables.poem.ReadsTable
+import com.mambobryan.data.tables.user.*
 import com.mambobryan.data.tables.user.toUser
 import com.mambobryan.data.tables.user.toUserList
-import com.mambobryan.utils.asLocalDate
-import com.mambobryan.utils.defaultOkResponse
-import com.mambobryan.utils.serverErrorResponse
-import com.mambobryan.utils.toDate
+import com.mambobryan.utils.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.statements.InsertStatement
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -32,11 +33,32 @@ class UsersRepository {
                 }
             }
 
-            defaultOkResponse(message = "signed up successfully", data = statement?.resultedValues?.get(0).toUser())
+            val user = statement?.resultedValues?.get(0).toUser()
+
+            defaultCreatedResponse(message = "signed up successfully", data = user)
 
         } catch (e: Exception) {
             println(e.localizedMessage)
             serverErrorResponse(message = e.localizedMessage)
+        }
+
+    }
+
+    suspend fun updatePassword(id: UUID, hash: String): ServerResponse<out Any?> = query {
+        return@query try {
+
+            UsersTable.update({ UsersTable.id eq id }) {
+                it[UsersTable.userUpdatedAt] = LocalDateTime.now()
+                it[UsersTable.userHash] = hash
+            }
+
+            defaultCreatedResponse(message = "password updated", data = null)
+
+        } catch (e: Exception) {
+
+            println(e.localizedMessage)
+            serverErrorResponse(message = e.localizedMessage)
+
         }
 
     }
@@ -50,50 +72,112 @@ class UsersRepository {
         gender: Int?,
         imageUrl: String? = null,
         token: String? = null
-    ): User? = query {
+    ): ServerResponse<out Any?> = query {
 
-        val now = LocalDateTime.now()
-        val dobAsDate = dateOfBirth.toDate()
+        try {
 
-        if (email.isNullOrBlank().not()) {
-            val exists = UsersTable.select { UsersTable.userEmail eq email!! }.firstOrNull() != null
-            if (exists) return@query null
+            val now = LocalDateTime.now()
+            val dobAsDate = dateOfBirth.toDate()
+
+            if (email.isNullOrBlank().not()) {
+                val exists =
+                    UsersTable.select { UsersTable.userEmail eq email!! and (UsersTable.id neq id) }.empty().not()
+
+                if (exists) return@query defaultBadRequestResponse(message = "Email already registered to another account.")
+            }
+
+            UsersTable.update({ UsersTable.id eq id }) {
+                it[UsersTable.userUpdatedAt] = now
+                it[UsersTable.userSetupAt] = now
+                if (!email.isNullOrBlank()) it[UsersTable.userEmail] = email
+                if (!username.isNullOrBlank()) it[UsersTable.userName] = username
+                if (!bio.isNullOrBlank()) it[UsersTable.userBio] = bio
+                if (dobAsDate != null) it[UsersTable.userDateOfBirth] = dobAsDate.asLocalDate()
+                if (gender != null) it[UsersTable.userGender] = gender
+                if (!imageUrl.isNullOrBlank()) it[UsersTable.userImage] = imageUrl
+                if (!token.isNullOrBlank()) it[UsersTable.userToken] = token
+            }
+
+            val user = UsersTable.select(UsersTable.id eq id).map { it.toUser().toUserDto() }.singleOrNull()
+
+            defaultOkResponse(message = "success", data = user)
+
+        } catch (e: Exception) {
+            println(e.localizedMessage)
+            serverErrorResponse(message = "Couldn't update user details")
         }
-
-        UsersTable.update({ UsersTable.id eq id }) {
-            it[UsersTable.userUpdatedAt] = now
-            it[UsersTable.userSetupAt] = now
-            if (!email.isNullOrBlank()) it[UsersTable.userEmail] = email
-            if (!username.isNullOrBlank()) it[UsersTable.userName] = username
-            if (!bio.isNullOrBlank()) it[UsersTable.userBio] = bio
-            if (dobAsDate != null) it[UsersTable.userDateOfBirth] = dobAsDate.asLocalDate()
-            if (gender != null) it[UsersTable.userGender] = gender
-            if (!imageUrl.isNullOrBlank()) it[UsersTable.userImage] = imageUrl
-            if (!token.isNullOrBlank()) it[UsersTable.userToken] = token
-        }
-
-        UsersTable.select(UsersTable.id eq id).map { it.toUser() }.singleOrNull()
 
     }
 
-    suspend fun getUser(userId: UUID) = query {
+    suspend fun getUser(userId: UUID, formatToDto: Boolean) = query {
         try {
-            val user = UsersTable.select(UsersTable.id eq userId).map { it.toUser() }.singleOrNull()
+            val user = UsersTable.select(UsersTable.id eq userId).map {
+                if (formatToDto) it.toUser().toUserDto()
+                else it.toUser()
+            }.singleOrNull()
             defaultOkResponse(message = "success", data = user)
         } catch (e: Exception) {
             println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
+            serverErrorResponse(message = "Couldn't get user")
         }
     }
 
-    suspend fun getUsers(userId: UUID) = query {
+    suspend fun getUserDetails(userId: UUID) = query {
+        try {
+
+            val read = Op.build { ReadsTable.userId eq UsersTable.id }
+            val reads = ReadsTable.id.count()
+
+            val like = Op.build { PoemLikesTable.userId eq UsersTable.id }
+            val likes = PoemLikesTable.id.count()
+
+            val bookmark = Op.build { BookmarksTable.userId eq UsersTable.id }
+            val bookmarks = BookmarksTable.id.count()
+
+            val columns = listOf(reads, bookmarks, likes, *UsersTable.columns.toTypedArray())
+
+            val data =
+                UsersTable.join(otherTable = ReadsTable, joinType = JoinType.LEFT, additionalConstraint = { read })
+                    .join(otherTable = BookmarksTable, joinType = JoinType.LEFT, additionalConstraint = { bookmark })
+                    .join(otherTable = PoemLikesTable, joinType = JoinType.LEFT, additionalConstraint = { like })
+                    .slice(columns).select(UsersTable.id eq userId).groupBy(UsersTable.id).map {
+                        it.toUser().toCompleteUserDto(reads = it[reads], bookmarks = it[bookmarks], likes = it[likes])
+                    }.singleOrNull()
+
+            defaultOkResponse(message = "success", data = data)
+
+        } catch (e: Exception) {
+            println(e.localizedMessage)
+            serverErrorResponse(message = "Couldn't get user")
+        }
+    }
+
+    suspend fun getUsers(userId: UUID, query: String, page: Int = 1) = query {
+
+        val (limit, offset) = getLimitAndOffset(page)
+
+        val condition = Op.build {
+            when (query.isBlank()) {
+                true -> {
+                    UsersTable.id neq userId
+                }
+
+                false -> {
+                    UsersTable.id neq userId and (UsersTable.userName.lowerCase() like "%$query%".lowercase() or (UsersTable.userEmail.lowerCase() like "%$query%".lowercase()))
+                }
+            }
+        }
 
         try {
 
-            val condition = Op.build { UsersTable.id neq userId }
+            val users = UsersTable.select { condition }
+                .limit(n = limit, offset = offset)
+                .toUserList()
+                .map { it.toMinimalUserDto() }
 
-            val users = UsersTable.select { condition }.toUserList()
-            defaultOkResponse(message = "users got successfully", data = users)
+            val data = getPagedData(page= page, result = users)
+
+            defaultOkResponse(message = "users got successfully", data = data)
 
         } catch (e: Exception) {
 
@@ -109,27 +193,7 @@ class UsersRepository {
         try {
 
             val result = UsersTable.select { UsersTable.userEmail eq email }.map { it.toUser() }.singleOrNull()
-            defaultOkResponse(message = "user got successfuly", data = result)
-
-        } catch (e: Exception) {
-
-            println(e.localizedMessage)
-            serverErrorResponse(message = e.localizedMessage)
-
-        }
-
-    }
-
-    suspend fun searchUsers(userId: UUID, query: String) = query {
-
-        try {
-
-            val condition = Op.build {
-                UsersTable.id neq userId and (UsersTable.userName like "%$query%" or (UsersTable.userEmail like "%$query%"))
-            }
-
-            val users = UsersTable.select { condition }.map { it.toUser() }
-            defaultOkResponse(message = "users got successfully", data = users)
+            defaultOkResponse(message = "user got successfully", data = result)
 
         } catch (e: Exception) {
 
