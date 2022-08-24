@@ -1,6 +1,6 @@
 package com.mambo
 
-import com.mambo.utils.isValidUrl
+import com.mambo.application.utils.isValidUrl
 import org.junit.Test
 import kotlin.test.assertEquals
 

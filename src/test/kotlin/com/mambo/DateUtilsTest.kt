@@ -1,7 +1,7 @@
 package com.mambo
 
-import com.mambo.utils.toDate
-import com.mambo.utils.toDateString
+import com.mambo.application.utils.toDate
+import com.mambo.application.utils.toDateString
 import org.junit.Test
 import java.util.Calendar
 import kotlin.test.assertEquals

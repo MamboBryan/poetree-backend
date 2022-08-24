@@ -2,6 +2,7 @@ package com.mambo.data.tables.poem
 
 import com.mambo.data.tables.user.UserEntity
 import com.mambo.data.tables.user.UsersTable
+import io.github.aakira.napier.Napier
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -44,7 +45,7 @@ internal fun ResultRow?.toPoemLike(): PoemLike? {
             poemId = this[PoemLikesTable.poemId].value,
         )
     } catch (e: Exception) {
-        println("Row To Like -> ${e.localizedMessage}")
+        Napier.e(e.localizedMessage, e)
         null
     }
 }

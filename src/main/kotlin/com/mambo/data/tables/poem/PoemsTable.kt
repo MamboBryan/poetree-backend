@@ -4,8 +4,9 @@ import com.mambo.data.tables.topic.*
 import com.mambo.data.tables.topic.toTopic
 import com.mambo.data.tables.user.*
 import com.mambo.data.tables.user.toUser
-import com.mambo.utils.toDate
-import com.mambo.utils.toDateTimeString
+import com.mambo.application.utils.toDate
+import com.mambo.application.utils.toDateTimeString
+import io.github.aakira.napier.Napier
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -129,7 +130,7 @@ internal fun ResultRow?.toCompletePoemDto(
         )
 
     } catch (e: Exception) {
-        println("Error changing from result row to Complete Poem -> ${e.localizedMessage}")
+        Napier.e("Error changing from result row to Complete Poem -> ${e.localizedMessage}", e)
         null
     }
 

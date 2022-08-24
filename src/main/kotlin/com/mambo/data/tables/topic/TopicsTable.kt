@@ -1,7 +1,8 @@
 package com.mambo.data.tables.topic
 
-import com.mambo.utils.toDate
-import com.mambo.utils.toDateTimeString
+import com.mambo.application.utils.toDate
+import com.mambo.application.utils.toDateTimeString
+import io.github.aakira.napier.Napier
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -58,8 +59,7 @@ internal fun Topic?.toTopicDto(): TopicDto? {
             color = this.color
         )
     } catch (e: Exception) {
-        val message = "Topic to TopicDto Error -> ${e.localizedMessage}"
-        println(message)
+        Napier.e(e.localizedMessage, e)
         null
     }
 }
@@ -91,8 +91,7 @@ internal fun TopicEntity?.toTopic(): Topic? {
             color = this.color
         )
     } catch (e: Exception) {
-        val message = "TopicEntity to Topic Error -> ${e.localizedMessage}"
-        println(message)
+        Napier.e(e.localizedMessage, e)
         null
     }
 }

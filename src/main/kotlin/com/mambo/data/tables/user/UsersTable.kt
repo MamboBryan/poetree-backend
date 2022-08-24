@@ -1,6 +1,11 @@
 package com.mambo.data.tables.user
 
+import com.mambo.application.utils.Exclude
+import com.mambo.application.utils.toDate
+import com.mambo.application.utils.toDateString
+import com.mambo.application.utils.toDateTimeString
 import com.mambo.utils.*
+import io.github.aakira.napier.Napier
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -105,7 +110,7 @@ fun User?.toMinimalUserDto(): UserMinimalDTO? {
             image = this.imageUrl
         )
     } catch (e: Exception) {
-        println(e.localizedMessage)
+        Napier.e(e.localizedMessage, e)
         null
     }
 }
@@ -125,8 +130,7 @@ fun User?.toUserDto(): UserDto? {
             gender = this.gender
         )
     } catch (e: Exception) {
-        val message = "UserEntity to UserDTO Error -> ${e.localizedMessage}"
-        println(message)
+        Napier.e(e.localizedMessage, e)
         null
     }
 }
@@ -149,8 +153,7 @@ fun User?.toCompleteUserDto(reads: Long?, bookmarks: Long?, likes: Long?): Compl
             bookmarks = bookmarks
         )
     } catch (e: Exception) {
-        val message = "UserEntity to CompleteUserDto Error -> ${e.localizedMessage}"
-        println(message)
+        Napier.e(e.localizedMessage, e)
         null
     }
 }

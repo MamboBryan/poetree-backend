@@ -1,6 +1,6 @@
 package com.mambo
 
-import com.mambo.utils.isValidPassword
+import com.mambo.application.utils.isValidPassword
 import org.junit.Test
 import kotlin.test.assertEquals
 

@@ -3,8 +3,9 @@ package com.mambo.data.tables.comment
 import com.mambo.data.tables.poem.PoemEntity
 import com.mambo.data.tables.poem.PoemsTable
 import com.mambo.data.tables.user.*
-import com.mambo.utils.toDate
-import com.mambo.utils.toDateTimeString
+import com.mambo.application.utils.toDate
+import com.mambo.application.utils.toDateTimeString
+import io.github.aakira.napier.Napier
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -14,7 +15,7 @@ import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
 import java.util.*
 
-object CommentsTable : UUIDTable(name ="comments") {
+object CommentsTable : UUIDTable(name = "comments") {
 
     val createdAt = datetime("comment_created_at")
     val updatedAt = datetime("comment_updated_at").nullable()
@@ -89,15 +90,14 @@ internal fun ResultRow?.toComment(): Comment? {
 
         )
     } catch (e: Exception) {
-        println("Error converting ResultRow to Comment -> ${e.localizedMessage}")
+        Napier.e("Error converting ResultRow to Comment -> ${e.localizedMessage}", e)
         null
     }
 
 }
 
 internal fun ResultRow?.toCompleteCommentDto(
-    liked: Boolean,
-    likes: Long
+    liked: Boolean, likes: Long
 ): CommentCompleteDto? {
     if (this == null) return null
     return try {
@@ -116,7 +116,7 @@ internal fun ResultRow?.toCompleteCommentDto(
 
         )
     } catch (e: Exception) {
-        println("Error converting ResultRow to Comment -> ${e.localizedMessage}")
+        Napier.e(e.localizedMessage, e)
         null
     }
 
@@ -134,7 +134,7 @@ internal fun Comment?.toCommentDto(): CommentDto? {
             content = this.content
         )
     } catch (e: Exception) {
-        println("Error converting Comment to CommentDto -> ${e.localizedMessage}")
+        Napier.e(e.localizedMessage, e)
         null
     }
 }
