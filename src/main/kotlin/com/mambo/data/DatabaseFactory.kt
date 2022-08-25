@@ -39,23 +39,6 @@ object DatabaseFactory {
             SchemaUtils.dropDatabase("poetree")
         }
 
-        transaction {
-            //delete tables
-            val tables = listOf(
-                UsersTable,
-                TopicsTable,
-                PoemsTable,
-                CommentsTable,
-                TokensTable,
-
-                CommentLikesTable,
-                PoemLikesTable,
-                BookmarksTable,
-                ReadsTable,
-            )
-            tables.forEach { SchemaUtils.drop(it) }
-        }
-
         transactionScope {
             SchemaUtils.createDatabase("poetree")
         }
