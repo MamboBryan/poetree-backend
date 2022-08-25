@@ -41,6 +41,19 @@ object DatabaseFactory {
 
         transaction {
 
+            // delete tables
+            SchemaUtils.drop(
+                CommentLikesTable,
+                PoemLikesTable,
+                BookmarksTable,
+                CommentsTable,
+                ReadsTable,
+                TopicsTable,
+                PoemsTable,
+                TokensTable,
+                UsersTable
+            )
+
             // create tables
             SchemaUtils.create(
                 UsersTable,
