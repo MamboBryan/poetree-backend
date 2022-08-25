@@ -10,6 +10,7 @@ import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
@@ -21,8 +22,8 @@ object CommentsTable : UUIDTable(name = "comments") {
     val updatedAt = datetime("comment_updated_at").nullable()
     val content = text("comment_content")
 
-    val userId = reference("comment_user_id", UsersTable)
-    val poemId = reference("comment_poem_id", PoemsTable)
+    val userId = reference("comment_user_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val poemId = reference("comment_poem_id", PoemsTable, onDelete = ReferenceOption.CASCADE)
 
 }
 

@@ -2,6 +2,7 @@ package com.mambo.data.tables.comment
 
 import com.mambo.data.tables.user.UsersTable
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
@@ -10,8 +11,8 @@ import java.util.UUID
 object CommentLikesTable : UUIDTable(name="comments_likes") {
 
     val createdAt = datetime("comment_like_created")
-    val commentId = reference("comment_id", CommentsTable)
-    val userId = reference("user_id", UsersTable)
+    val commentId = reference("comment_id", CommentsTable, onDelete = ReferenceOption.CASCADE)
+    val userId = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE)
 
 }
 

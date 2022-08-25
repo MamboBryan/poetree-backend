@@ -7,6 +7,7 @@ import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.datetime
@@ -16,8 +17,8 @@ import java.util.*
 object PoemLikesTable : UUIDTable(name="poems_likes") {
 
     val createdAt = datetime("created_at")
-    val poemId = reference("poem_id", PoemsTable)
-    val userId = reference("user_id", UsersTable)
+    val poemId = reference("poem_id", PoemsTable, onDelete = ReferenceOption.CASCADE)
+    val userId = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE)
 
 }
 
