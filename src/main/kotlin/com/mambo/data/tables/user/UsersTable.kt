@@ -17,7 +17,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
 
-object UsersTable : UUIDTable(name = "users") {
+object UsersTable : UUIDTable(name = "users_table") {
 
     val userCreatedAt = datetime("user_created_at")
     val userUpdatedAt = datetime("user_updated_at").nullable()
