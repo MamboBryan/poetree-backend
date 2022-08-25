@@ -42,15 +42,16 @@ object DatabaseFactory {
         transaction {
             //delete tables
             val tables = listOf(
+                UsersTable,
+                TopicsTable,
+                PoemsTable,
+                CommentsTable,
+                TokensTable,
+
                 CommentLikesTable,
                 PoemLikesTable,
                 BookmarksTable,
                 ReadsTable,
-                TopicsTable,
-                CommentsTable,
-                PoemsTable,
-                TokensTable,
-                UsersTable,
             )
             tables.forEach { SchemaUtils.drop(it) }
         }
