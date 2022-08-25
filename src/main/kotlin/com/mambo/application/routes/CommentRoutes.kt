@@ -4,10 +4,9 @@ import com.mambo.application.utils.asUUID
 import com.mambo.application.utils.defaultResponse
 import com.mambo.application.utils.getCurrentUserId
 import com.mambo.application.utils.respond
-import com.mambo.data.requests.CommentRequest
 import com.mambo.data.dao.CommentsDao
 import com.mambo.data.dao.LikesDao
-import com.mambo.utils.*
+import com.mambo.data.requests.CommentRequest
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*

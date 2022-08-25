@@ -27,9 +27,9 @@ class TokensDao {
             }
         }
 
-        val data = statement?.resultedValues?.get(0).toTopic().toTopicDto()
+        val data = statement?.resultedValues?.get(0)
 
-        defaultCreatedResponse(message = "token saved successfully", data = data)
+        defaultCreatedResponse(message = "token saved successfully", data = data != null)
 
     }
 
@@ -37,7 +37,7 @@ class TokensDao {
         query {
 
             val tokenExists = TokensTable.select { TokensTable.id eq tokenId }.empty().not()
-            if (!tokenExists   ) return@query defaultNotFoundResponse(message = "token not found")
+            if (!tokenExists) return@query defaultNotFoundResponse(message = "token not found")
             val result = TokensTable.deleteWhere { TokensTable.id eq tokenId }
             defaultOkResponse(message = "token deleted successfully", data = result != 0)
 
@@ -48,10 +48,20 @@ class TokensDao {
         query {
 
             val tokenExists = TokensTable.select { TokensTable.token eq tokenId }.empty().not()
-            if (!tokenExists   ) return@query defaultNotFoundResponse(message = "token not found")
+            if (!tokenExists) return@query defaultNotFoundResponse(message = "token not found")
             val result = TokensTable.deleteWhere { TokensTable.token eq tokenId }
             defaultOkResponse(message = "token deleted successfully", data = result != 0)
 
+        }
+    }
+
+    suspend fun deleteAllUserTokens(userId: UUID) {
+        try {
+            query {
+                TokensTable.deleteWhere { TokensTable.user eq userId }
+            }
+        } catch (e: Exception) {
+            Napier.e("error while deleting tokens", e)
         }
     }
 

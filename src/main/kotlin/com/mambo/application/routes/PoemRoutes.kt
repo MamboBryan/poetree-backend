@@ -1,13 +1,12 @@
 package com.mambo.application.routes
 
 import com.mambo.application.utils.*
-import com.mambo.data.requests.CommentRequest
-import com.mambo.data.requests.PoemRequest
 import com.mambo.data.dao.BookmarkDao
 import com.mambo.data.dao.CommentsDao
 import com.mambo.data.dao.LikesDao
 import com.mambo.data.dao.PoemsDao
-import com.mambo.utils.*
+import com.mambo.data.requests.CommentRequest
+import com.mambo.data.requests.PoemRequest
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*

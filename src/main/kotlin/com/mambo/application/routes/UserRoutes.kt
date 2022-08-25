@@ -240,7 +240,7 @@ fun Route.userRoutes(
                     if (updateResponse.status.isSuccess().not()) return@put call.respond(updateResponse)
 
                     /**
-                     * TODO
+                     * TODO:
                      * 1. Invalidate user token
                      */
                     val token = TokenProvider.generateTokens(issuer = issuer, audience = audience, userId = user.id.toString())
@@ -267,7 +267,7 @@ fun Route.userRoutes(
                 val response = usersDao.delete(id)
 
                 /**
-                 * TODO
+                 * TODO:
                  * 1. Invalidate user token
                  */
 

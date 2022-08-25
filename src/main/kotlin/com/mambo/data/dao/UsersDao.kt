@@ -39,7 +39,7 @@ class UsersDao {
                 message = "unable to return user details"
             )
 
-        getUserDetails(userId = userId)
+        getUser(userId = userId, formatToDto = false)
 
     }
 
@@ -171,26 +171,36 @@ class UsersDao {
     }
 
     suspend fun getUserByEmail(email: String) = safeTransaction(
-        error = "failed getting user by email"
+        error = "failed getting user"
     ) {
         query {
 
-            val result = UsersTable.select { UsersTable.userEmail eq email }.map { it.toUser() }.singleOrNull()
-            defaultOkResponse(message = "user got successfully", data = result)
+            val result = UsersTable.select { UsersTable.userEmail eq email }
+                .map { it.toUser() }
+                .singleOrNull()
+
+            when (result != null) {
+                false -> defaultNotFoundResponse(message = "user with email doesn't exist")
+                true -> defaultOkResponse(message = "user got successfully", data = result)
+            }
 
         }
     }
 
-    suspend fun checkValidCredentials(email: String, hashPassword : String): ServerResponse<Boolean?> = safeTransaction(
+    suspend fun checkValidCredentials(email: String, hashPassword: String): ServerResponse<Boolean?> = safeTransaction(
         error = "invalid credential"
     ) {
         query {
 
             val user = UsersTable.select { UsersTable.userEmail eq email }.map { it.toUser() }.singleOrNull()
 
-            return@query when(user == null){
+            return@query when (user == null) {
                 true -> ServerResponse(status = HttpStatusCode.Unauthorized, message = "", data = false)
-                false -> ServerResponse(status = HttpStatusCode.Unauthorized, message = "", data = user.hash == hashPassword)
+                false -> ServerResponse(
+                    status = HttpStatusCode.Unauthorized,
+                    message = "",
+                    data = user.hash == hashPassword
+                )
             }
 
         }

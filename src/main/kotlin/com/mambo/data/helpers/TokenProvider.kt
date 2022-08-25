@@ -43,7 +43,6 @@ object TokenProvider {
     }
 
     private fun createAccessToken(issuer: String, audience: String, userId: String) = JWT.create()
-        .withSubject("Authentication")
         .withIssuer(issuer)
         .withAudience(audience)
         .withClaim("userId", userId)
@@ -52,7 +51,6 @@ object TokenProvider {
         .sign(algorithm)
 
     private fun createRefreshToken(issuer: String, audience: String, userId: String) = JWT.create()
-        .withSubject("Authentication")
         .withIssuer(issuer)
         .withAudience(audience)
         .withClaim("userId", userId)
