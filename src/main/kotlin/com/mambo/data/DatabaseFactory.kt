@@ -36,12 +36,12 @@ object DatabaseFactory {
     private fun createDatabaseAndTables() {
 
         transactionScope {
-            SchemaUtils.createDatabase("poetree")
+            SchemaUtils.dropDatabase("poetree")
         }
 
         transaction {
 
-            // delete tables
+            //delete tables
             SchemaUtils.drop(
                 CommentLikesTable,
                 PoemLikesTable,
@@ -51,8 +51,13 @@ object DatabaseFactory {
                 TopicsTable,
                 PoemsTable,
                 TokensTable,
-                UsersTable
+                UsersTable,
+                inBatch = true
             )
+
+            transactionScope {
+                SchemaUtils.createDatabase("poetree")
+            }
 
             // create tables
             SchemaUtils.create(
@@ -64,7 +69,8 @@ object DatabaseFactory {
                 PoemLikesTable,
                 ReadsTable,
                 BookmarksTable,
-                TokensTable
+                TokensTable,
+                inBatch = true
             )
 
         }
@@ -87,6 +93,5 @@ object DatabaseFactory {
         }
         return HikariDataSource(config)
     }
-
 
 }
