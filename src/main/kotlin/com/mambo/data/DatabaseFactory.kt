@@ -35,9 +35,25 @@ object DatabaseFactory {
 
     private fun createDatabaseAndTables() {
 
-        transactionScope {
-            SchemaUtils.dropDatabase("poetree")
-        }
+//        IN CASE I WANT TO NUKE EVERYTHING
+//        transaction{
+//            // delete tables
+//            SchemaUtils.drop(
+//                UsersTable,
+//                TopicsTable,
+//                CommentsTable,
+//                CommentLikesTable,
+//                PoemsTable,
+//                PoemLikesTable,
+//                ReadsTable,
+//                BookmarksTable,
+//                TokensTable,
+//            )
+//        }
+//
+//        transactionScope {
+//            SchemaUtils.dropDatabase("poetree")
+//        }
 
         transactionScope {
             SchemaUtils.createDatabase("poetree")

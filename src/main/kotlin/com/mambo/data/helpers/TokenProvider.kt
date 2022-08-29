@@ -16,8 +16,8 @@ object TokenProvider {
     private val secret = System.getenv("SECRET_KEY")
     private val algorithm = Algorithm.HMAC512(secret)
 
-    private const val ACCESS_TOKEN_VALIDITY = 36_000_00 * 1L
-    private const val REFRESH_TOKEN_VALIDITY = 43_200_000 * 7L
+    private const val ACCESS_TOKEN_VALIDITY = 1000 * 60 * 60 * 10L
+    private const val REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24 * 7L
 
     private fun expiresAt(time: Long) = Date(System.currentTimeMillis() + time)
 

@@ -17,7 +17,7 @@ import java.util.*
 class PoemsDao {
 
     suspend fun create(userId: UUID, request: PoemRequest): ServerResponse<out Any?> = safeTransaction(
-        error = "failed creating poems"
+        error = "failed creating poem"
     ) {
 
         if (request.title.isNullOrBlank()) return@safeTransaction defaultBadRequestResponse("title cannot be blank or null")
