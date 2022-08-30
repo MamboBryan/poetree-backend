@@ -81,8 +81,6 @@ fun Route.userRoutes(
                     status = HttpStatusCode.BadRequest, message = "Invalid user id"
                 )
 
-                if (currentUserId == userId) return@post call.redirectInternally("/users/me")
-
                 val page = call.getQuery(QueryUtils.PAGE)?.toIntOrNull() ?: 1
 
                 val response = poemsDao.getUserPoems(currentUserId = currentUserId, userId = userId, page = page)
@@ -243,7 +241,8 @@ fun Route.userRoutes(
                      * TODO:
                      * 1. Invalidate user token
                      */
-                    val token = TokenProvider.generateTokens(issuer = issuer, audience = audience, userId = user.id.toString())
+                    val token =
+                        TokenProvider.generateTokens(issuer = issuer, audience = audience, userId = user.id.toString())
 
                     val data = mapOf("token" to token)
 
